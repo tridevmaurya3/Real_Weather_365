@@ -13,6 +13,8 @@ import com.tridev.realweather365.data.weather.CachedWeatherRecord
 import com.tridev.realweather365.data.weather.LiveWeatherSnapshot
 import com.tridev.realweather365.data.weather.OpenMeteoWeatherRepository
 import com.tridev.realweather365.data.weather.WeatherCacheStore
+import com.tridev.realweather365.data.weather.WeatherDataAccuracyEngine
+import com.tridev.realweather365.data.weather.WeatherDataRejectedException
 import com.tridev.realweather365.data.weather.WmoWeather
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +24,7 @@ import kotlinx.coroutines.launch
 
 class WeatherHomeViewModel(application: Application) : AndroidViewModel(application) {
     private val weatherRepository = OpenMeteoWeatherRepository()
+    private val accuracyEngine = WeatherDataAccuracyEngine()
     private val cacheStore = WeatherCacheStore(application)
     private val connectivityManager = application.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
@@ -155,7 +158,14 @@ class WeatherHomeViewModel(application: Application) : AndroidViewModel(applicat
         var lastError: Throwable? = null
         repeat(3) { attempt ->
             try {
-                return Result.success(weatherRepository.load(location))
+                val raw = weatherRepository.load(location)
+                val accuracy = accuracyEngine.validateLive(location, raw)
+                if (accuracy.isRejected) {
+                    throw WeatherDataRejectedException(
+                        accuracy.warnings.firstOrNull() ?: "Weather response failed accuracy validation"
+                    )
+                }
+                return Result.success(accuracy.snapshot)
             } catch (error: Throwable) {
                 lastError = error
                 if (attempt < 2 && isNetworkAvailableNow()) {
@@ -240,8 +250,10 @@ class WeatherHomeViewModel(application: Application) : AndroidViewModel(applicat
         savedAtEpochMillis: Long,
         errorMessage: String?
     ): WeatherHomeUiState {
-        val condition = WmoWeather.condition(snapshot.weatherCode, snapshot.isDay)
-        val hourly = snapshot.hourly24.take(6).map { hour ->
+        val accuracy = accuracyEngine.validateCached(location, snapshot)
+        val safeSnapshot = accuracy.snapshot
+        val condition = WmoWeather.condition(safeSnapshot.weatherCode, safeSnapshot.isDay)
+        val hourly = safeSnapshot.hourly24.take(6).map { hour ->
             HourForecast(
                 time = hour.label,
                 temperature = hour.temperature,
@@ -250,47 +262,51 @@ class WeatherHomeViewModel(application: Application) : AndroidViewModel(applicat
         }
 
         return _uiState.value.copy(
-            scene = sceneFor(snapshot.weatherCode, snapshot.isDay, snapshot.observedAt),
+            scene = sceneFor(safeSnapshot.weatherCode, safeSnapshot.isDay, safeSnapshot.observedAt),
             location = location.name,
             selectedLocation = location,
-            updatedAt = updatedAt,
-            observedAt = snapshot.observedAt,
-            temperature = snapshot.temperature,
+            updatedAt = "$updatedAt • ${accuracy.label}",
+            observedAt = safeSnapshot.observedAt,
+            temperature = safeSnapshot.temperature,
             condition = condition,
-            feelsLike = snapshot.feelsLike,
-            high = snapshot.high,
-            low = snapshot.low,
-            isDay = snapshot.isDay,
+            feelsLike = safeSnapshot.feelsLike,
+            high = safeSnapshot.high,
+            low = safeSnapshot.low,
+            isDay = safeSnapshot.isDay,
             isLoading = isLoading,
             errorMessage = errorMessage,
             hasWeatherData = true,
             isOffline = isOffline,
             isCachedData = isCachedData,
             lastSuccessfulUpdateEpochMillis = savedAtEpochMillis,
-            sunrise = snapshot.sunrise,
-            sunset = snapshot.sunset,
-            windSpeed = snapshot.windSpeed,
-            windDirection = snapshot.windDirection,
-            windGusts = snapshot.windGusts,
-            humidity = snapshot.humidity,
-            pressure = snapshot.pressure,
-            visibilityKm = snapshot.visibilityKm,
-            dewPoint = snapshot.dewPoint,
-            uvIndex = snapshot.uvIndex,
-            cloudCover = snapshot.cloudCover,
-            aqi = snapshot.aqi,
-            pm25 = snapshot.pm25,
-            pm10 = snapshot.pm10,
-            nitrogenDioxide = snapshot.nitrogenDioxide,
-            ozone = snapshot.ozone,
-            hourly24 = snapshot.hourly24,
-            daily10 = snapshot.daily10,
+            dataQualityLabel = accuracy.label,
+            dataQualityWarnings = accuracy.warnings,
+            dataAgeMinutes = accuracy.dataAgeMinutes,
+            validatedTimeZoneId = accuracy.timeZoneId,
+            sunrise = safeSnapshot.sunrise,
+            sunset = safeSnapshot.sunset,
+            windSpeed = safeSnapshot.windSpeed,
+            windDirection = safeSnapshot.windDirection,
+            windGusts = safeSnapshot.windGusts,
+            humidity = safeSnapshot.humidity,
+            pressure = safeSnapshot.pressure,
+            visibilityKm = safeSnapshot.visibilityKm,
+            dewPoint = safeSnapshot.dewPoint,
+            uvIndex = safeSnapshot.uvIndex,
+            cloudCover = safeSnapshot.cloudCover,
+            aqi = safeSnapshot.aqi,
+            pm25 = safeSnapshot.pm25,
+            pm10 = safeSnapshot.pm10,
+            nitrogenDioxide = safeSnapshot.nitrogenDioxide,
+            ozone = safeSnapshot.ozone,
+            hourly24 = safeSnapshot.hourly24,
+            daily10 = safeSnapshot.daily10,
             hourly = if (hourly.isNotEmpty()) hourly else _uiState.value.hourly,
             metrics = listOf(
-                WeatherMetric("AQI", snapshot.aqi?.toString() ?: "--", WmoWeather.aqiLabel(snapshot.aqi)),
-                WeatherMetric("Wind", "${snapshot.windSpeed} km/h", WmoWeather.compassDirection(snapshot.windDirection)),
-                WeatherMetric("Humidity", "${snapshot.humidity}%", humidityHint(snapshot.humidity)),
-                WeatherMetric("Pressure", snapshot.pressure.toString(), "hPa")
+                WeatherMetric("AQI", safeSnapshot.aqi?.toString() ?: "--", WmoWeather.aqiLabel(safeSnapshot.aqi)),
+                WeatherMetric("Wind", "${safeSnapshot.windSpeed} km/h", WmoWeather.compassDirection(safeSnapshot.windDirection)),
+                WeatherMetric("Humidity", "${safeSnapshot.humidity}%", humidityHint(safeSnapshot.humidity)),
+                WeatherMetric("Pressure", safeSnapshot.pressure.toString(), "hPa")
             )
         )
     }
