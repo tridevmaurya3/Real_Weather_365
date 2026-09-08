@@ -111,6 +111,11 @@ fun WeatherHomeScreen(
             modifier = Modifier.fillMaxSize()
         )
 
+        VisibilityAtmosphereOverlay(
+            animationLevel = state.animationLevel,
+            modifier = Modifier.fillMaxSize()
+        )
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
