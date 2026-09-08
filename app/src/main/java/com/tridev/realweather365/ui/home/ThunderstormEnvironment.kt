@@ -21,7 +21,7 @@ import kotlin.math.abs
 import kotlin.math.sin
 
 @Composable
-fun ThunderstormEnvironment(modifier: Modifier = Modifier) {
+fun ThunderstormEnvironment(animationLevel: Int = 2, modifier: Modifier = Modifier) {
     val physics = rememberPrecipitationPhysics(storm = true)
     val intensity = physics.intensity.coerceIn(0.45f, 1f)
     val lightningPotential = physics.lightningPotential.coerceIn(0.18f, 1f)
@@ -62,15 +62,17 @@ fun ThunderstormEnvironment(modifier: Modifier = Modifier) {
     )
 
     Canvas(modifier = modifier.fillMaxSize()) {
-        val flash = providerLightningFlash(lightningCycle.value, lightningPotential)
+        val rainProgress = if (animationLevel <= 0) 0.43f else rainFlow.value
+        val flash = if (animationLevel <= 0) 0f else providerLightningFlash(lightningCycle.value, lightningPotential)
         drawProviderStormSky(intensity, flash)
         drawStormHorizon(intensity, flash)
         drawStormCityWorld(intensity, flash)
         drawStormWetSurface(intensity, flash, waterFlow.value)
         if (flash > 0.13f) drawProviderLightningBolt(flash, lightningPotential)
-        drawProviderStormRain(physics, rainFlow.value)
-        if (physics.hail) drawProviderHail(physics, rainFlow.value)
-        drawStormSplashes(physics, rainFlow.value, flash)
+        drawScientificRainField(physics, rainProgress, foregroundStrength = 1.18f)
+        if (physics.hail) drawProviderHail(physics, rainProgress)
+        drawScientificImpactField(physics, rainProgress, size.height * 0.64f)
+        drawLensDroplets(physics, rainProgress)
         drawStormExposure(intensity, flash)
     }
 }
