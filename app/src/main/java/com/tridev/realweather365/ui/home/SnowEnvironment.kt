@@ -21,7 +21,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 @Composable
-fun SnowEnvironment(modifier: Modifier = Modifier) {
+fun SnowEnvironment(animationLevel: Int = 2, modifier: Modifier = Modifier) {
     val physics = rememberSnowPhysics()
     val intensity = physics.intensity.coerceIn(0.04f, 1f)
     val transition = rememberInfiniteTransition(label = "provider-snow-environment")
@@ -70,17 +70,21 @@ fun SnowEnvironment(modifier: Modifier = Modifier) {
     )
 
     Canvas(modifier = modifier.fillMaxSize()) {
+        val farProgress = if (animationLevel <= 0) 0.31f else farSnow.value
+        val nearProgress = if (animationLevel <= 0) 0.53f else nearSnow.value
+        val mistProgress = if (animationLevel <= 0) 0.24f else mistShift.value
+        val driftProgress = if (animationLevel <= 0) 0.46f else groundDrift.value
         val visibility = (physics.visibilityKm / 18.0).toFloat().coerceIn(0.16f, 1f)
         drawWinterSky(intensity, visibility)
         drawDistantSnowMountains(visibility)
         drawMidSnowRange(visibility)
-        drawWinterMist(mistShift.value, intensity, visibility)
+        drawWinterMist(mistProgress, intensity, visibility)
         drawSnowPineForest(intensity, visibility)
         drawSnowGround(physics.accumulation, intensity)
-        drawFarSnow(farSnow.value, physics)
-        drawNearSnow(nearSnow.value, physics)
+        drawScientificSnowField(physics, farProgress, near = false)
+        drawScientificSnowField(physics, nearProgress, near = true)
         if (physics.blowingSnow > 0.20f) {
-            drawBlowingSnow(groundDrift.value, physics)
+            drawBlowingSnow(driftProgress, physics)
         }
         drawColdVignette(intensity, visibility)
     }
