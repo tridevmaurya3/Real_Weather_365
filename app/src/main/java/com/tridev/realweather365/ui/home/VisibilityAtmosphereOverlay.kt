@@ -44,6 +44,11 @@ fun VisibilityAtmosphereOverlay(
     animationLevel: Int,
     modifier: Modifier = Modifier
 ) {
+    LivingWindEnvironment(
+        animationLevel = animationLevel,
+        modifier = modifier
+    )
+
     val physics = rememberAtmosphereVisibilityPhysics()
     if (physics.fogDensity < 0.035f && physics.hazeDensity < 0.035f) return
 
