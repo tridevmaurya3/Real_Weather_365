@@ -20,6 +20,7 @@ import com.tridev.realweather365.data.weather.LiveWeatherSnapshot
 import com.tridev.realweather365.data.weather.OpenMeteoWeatherRepository
 import com.tridev.realweather365.data.weather.WmoWeather
 import com.tridev.realweather365.ui.home.WeatherHomeUiState
+import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -50,6 +51,7 @@ data class WeatherWidgetSnapshot(
     val updatedAt: String,
     val temperatureUnit: String,
     val windUnit: String,
+    val theme: String,
     val hours: List<WidgetHour>
 )
 
@@ -72,6 +74,7 @@ class WeatherWidgetSnapshotStore(context: Context) {
                 updatedAt = state.updatedAt,
                 temperatureUnit = state.temperatureUnit,
                 windUnit = state.windUnit,
+                theme = state.scene.name.lowercase(Locale.US),
                 hours = hours
             )
         )
@@ -94,6 +97,7 @@ class WeatherWidgetSnapshotStore(context: Context) {
                 updatedAt = if (live.displayTime.isBlank()) "Updated now" else "Updated ${live.displayTime}",
                 temperatureUnit = unit.temperatureUnit,
                 windUnit = unit.windUnit,
+                theme = themeForLive(live),
                 hours = live.hourly24.take(4).map {
                     WidgetHour(it.label, convertTemperature(it.temperature, unit))
                 }
@@ -137,6 +141,7 @@ class WeatherWidgetSnapshotStore(context: Context) {
             updatedAt = prefs.getString("updated_at", "Open app to sync") ?: "Open app to sync",
             temperatureUnit = prefs.getString("temperature_unit", "°C") ?: "°C",
             windUnit = prefs.getString("wind_unit", "km/h") ?: "km/h",
+            theme = prefs.getString("theme", "night") ?: "night",
             hours = hours
         )
     }
@@ -163,6 +168,7 @@ class WeatherWidgetSnapshotStore(context: Context) {
             putString("updated_at", snapshot.updatedAt)
             putString("temperature_unit", snapshot.temperatureUnit)
             putString("wind_unit", snapshot.windUnit)
+            putString("theme", snapshot.theme)
             repeat(4) { index ->
                 val hour = snapshot.hours.getOrNull(index)
                 putString("hour_${index}_time", hour?.time ?: "--")
@@ -257,16 +263,19 @@ private fun buildViews(
         WeatherWidgetSize.LARGE -> R.layout.widget_weather_large
     }
     val views = RemoteViews(context.packageName, layout)
-    val openAppIntent = Intent(context, MainActivity::class.java).apply {
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-    }
-    val pendingIntent = PendingIntent.getActivity(
-        context,
-        100 + size.ordinal,
-        openAppIntent,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    views.setInt(R.id.widget_root, "setBackgroundResource", widgetBackground(snapshot.theme))
+    views.setOnClickPendingIntent(
+        R.id.widget_root,
+        widgetPendingIntent(context, 100 + size.ordinal, "weather")
     )
-    views.setOnClickPendingIntent(R.id.widget_root, pendingIntent)
+    views.setOnClickPendingIntent(
+        R.id.widget_city,
+        widgetPendingIntent(context, 120 + size.ordinal, "globalLocation")
+    )
+    views.setOnClickPendingIntent(
+        R.id.widget_condition,
+        widgetPendingIntent(context, 130 + size.ordinal, "forecast10")
+    )
 
     views.setTextViewText(R.id.widget_city, snapshot.location.name)
     views.setTextViewText(R.id.widget_icon, weatherEmoji(snapshot.condition))
@@ -279,6 +288,18 @@ private fun buildViews(
         views.setTextViewText(R.id.widget_humidity, "${snapshot.humidity}%")
         views.setTextViewText(R.id.widget_wind, "${snapshot.windSpeed} ${snapshot.windUnit}")
         views.setTextViewText(R.id.widget_aqi, snapshot.aqi?.toString() ?: "--")
+        views.setOnClickPendingIntent(
+            R.id.widget_humidity,
+            widgetPendingIntent(context, 140 + size.ordinal, "weatherDetails")
+        )
+        views.setOnClickPendingIntent(
+            R.id.widget_wind,
+            widgetPendingIntent(context, 150 + size.ordinal, "weatherDetails")
+        )
+        views.setOnClickPendingIntent(
+            R.id.widget_aqi,
+            widgetPendingIntent(context, 160 + size.ordinal, "airQuality")
+        )
     }
 
     if (size == WeatherWidgetSize.LARGE) {
@@ -288,9 +309,50 @@ private fun buildViews(
             val hour = snapshot.hours.getOrNull(index) ?: WidgetHour("--", snapshot.temperature)
             views.setTextViewText(timeIds[index], hour.time)
             views.setTextViewText(tempIds[index], "${hour.temperature}°")
+            val deepLink = widgetPendingIntent(context, 180 + index, "forecast24")
+            views.setOnClickPendingIntent(timeIds[index], deepLink)
+            views.setOnClickPendingIntent(tempIds[index], deepLink)
         }
     }
     return views
+}
+
+private fun widgetPendingIntent(context: Context, requestCode: Int, destination: String): PendingIntent {
+    val intent = Intent(context, MainActivity::class.java).apply {
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        putExtra(MainActivity.EXTRA_START_DESTINATION, destination)
+    }
+    return PendingIntent.getActivity(
+        context,
+        requestCode,
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+}
+
+private fun widgetBackground(theme: String): Int = when (theme.lowercase(Locale.US)) {
+    "sunrise" -> R.drawable.widget_weather_sunrise
+    "rain" -> R.drawable.widget_weather_rain
+    "thunderstorm", "storm" -> R.drawable.widget_weather_storm
+    "snow" -> R.drawable.widget_weather_snow
+    "night" -> R.drawable.widget_weather_night
+    else -> R.drawable.widget_weather_clear
+}
+
+private fun themeForLive(live: LiveWeatherSnapshot): String {
+    return when (live.weatherCode) {
+        71, 73, 75, 77, 85, 86 -> "snow"
+        95, 96, 99 -> "storm"
+        51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82 -> "rain"
+        else -> {
+            if (!live.isDay) {
+                "night"
+            } else {
+                val hour = live.observedAt.substringAfter('T', "12:00").take(2).toIntOrNull() ?: 12
+                if (hour in 5..7) "sunrise" else "clear"
+            }
+        }
+    }
 }
 
 private fun weatherEmoji(condition: String): String = when {
