@@ -4,6 +4,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,6 +55,7 @@ import com.tridev.realweather365.ui.theme.RealWeather365Theme
 @Composable
 fun WeatherHomeScreen(
     state: WeatherHomeUiState,
+    navigation: WeatherHomeNavigation = WeatherHomeNavigation(),
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -85,15 +87,34 @@ fun WeatherHomeScreen(
                 .navigationBarsPadding()
                 .padding(horizontal = 12.dp)
         ) {
-            LocationHeader(state)
+            LocationHeader(
+                state = state,
+                onOpenLocations = navigation.openLocations,
+                onOpenDetails = navigation.openDetails
+            )
             Spacer(modifier = Modifier.weight(1f))
-            CurrentConditions(state)
+            CurrentConditions(
+                state = state,
+                onOpenTenDay = navigation.openForecast10
+            )
             Spacer(modifier = Modifier.height(9.dp))
-            HourlyForecastPanel(state.hourly)
+            HourlyForecastPanel(
+                hourly = state.hourly,
+                onOpenForecast = navigation.openForecast24
+            )
             Spacer(modifier = Modifier.height(7.dp))
-            MetricsPanel(state.metrics)
+            MetricsPanel(
+                metrics = state.metrics,
+                onOpenAirQuality = navigation.openAirQuality,
+                onOpenDetails = navigation.openDetails
+            )
             Spacer(modifier = Modifier.height(7.dp))
-            BottomNavigation()
+            BottomNavigation(
+                onOpenRadar = navigation.openRadar,
+                onOpenForecast = navigation.openForecast10,
+                onOpenAlerts = navigation.openAlerts,
+                onOpenMore = navigation.openDetails
+            )
             Spacer(modifier = Modifier.height(3.dp))
         }
     }
@@ -150,24 +171,36 @@ private fun sceneScrim(scene: WeatherScene): Brush = when (scene) {
 }
 
 @Composable
-private fun LocationHeader(state: WeatherHomeUiState) {
+private fun LocationHeader(
+    state: WeatherHomeUiState,
+    onOpenLocations: () -> Unit,
+    onOpenDetails: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 6.dp),
         verticalAlignment = Alignment.Top
     ) {
-        Icon(
-            imageVector = Icons.Outlined.Menu,
-            contentDescription = "Menu",
-            tint = Color.White.copy(alpha = 0.92f),
+        Box(
             modifier = Modifier
-                .padding(top = 4.dp)
-                .size(20.dp)
-        )
+                .size(34.dp)
+                .clickable(onClick = onOpenLocations),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Menu,
+                contentDescription = "Locations",
+                tint = Color.White.copy(alpha = 0.92f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
 
         Column(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .clickable(onClick = onOpenLocations)
+                .padding(vertical = 1.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -191,20 +224,32 @@ private fun LocationHeader(state: WeatherHomeUiState) {
             )
         }
 
-        Icon(
-            imageVector = Icons.Outlined.MoreVert,
-            contentDescription = "More",
-            tint = Color.White.copy(alpha = 0.92f),
+        Box(
             modifier = Modifier
-                .padding(top = 4.dp)
-                .size(20.dp)
-        )
+                .size(34.dp)
+                .clickable(onClick = onOpenDetails),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.MoreVert,
+                contentDescription = "Weather details",
+                tint = Color.White.copy(alpha = 0.92f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
 
 @Composable
-private fun CurrentConditions(state: WeatherHomeUiState) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+private fun CurrentConditions(
+    state: WeatherHomeUiState,
+    onOpenTenDay: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onOpenTenDay)
+    ) {
         Text(
             text = "${state.temperature}°",
             color = Color.White,
@@ -234,10 +279,15 @@ private fun CurrentConditions(state: WeatherHomeUiState) {
 }
 
 @Composable
-private fun HourlyForecastPanel(hourly: List<HourForecast>) {
+private fun HourlyForecastPanel(
+    hourly: List<HourForecast>,
+    onOpenForecast: () -> Unit
+) {
     GlassPanel(cornerRadius = 15.dp, verticalPadding = 9.dp) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onOpenForecast),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             hourly.take(6).forEach { item ->
@@ -291,23 +341,40 @@ private fun weatherIconTint(condition: String): Color = when {
 }
 
 @Composable
-private fun MetricsPanel(metrics: List<WeatherMetric>) {
+private fun MetricsPanel(
+    metrics: List<WeatherMetric>,
+    onOpenAirQuality: () -> Unit,
+    onOpenDetails: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         metrics.take(4).forEach { metric ->
-            MetricCard(metric = metric, modifier = Modifier.weight(1f))
+            MetricCard(
+                metric = metric,
+                modifier = Modifier.weight(1f),
+                onClick = if (metric.label.equals("AQI", ignoreCase = true)) {
+                    onOpenAirQuality
+                } else {
+                    onOpenDetails
+                }
+            )
         }
     }
 }
 
 @Composable
-private fun MetricCard(metric: WeatherMetric, modifier: Modifier = Modifier) {
+private fun MetricCard(
+    metric: WeatherMetric,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
     Surface(
         modifier = modifier
             .height(72.dp)
-            .shadow(7.dp, RoundedCornerShape(14.dp)),
+            .shadow(7.dp, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
         color = Color(0x9C06171E),
         border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.14f)),
@@ -377,7 +444,12 @@ private fun GlassPanel(
 }
 
 @Composable
-private fun BottomNavigation() {
+private fun BottomNavigation(
+    onOpenRadar: () -> Unit,
+    onOpenForecast: () -> Unit,
+    onOpenAlerts: () -> Unit,
+    onOpenMore: () -> Unit
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
@@ -391,11 +463,11 @@ private fun BottomNavigation() {
                 .padding(horizontal = 3.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceAround
         ) {
-            NavItem(Icons.Outlined.WbSunny, "Weather", true)
-            NavItem(Icons.Outlined.Map, "Map", false)
-            NavItem(Icons.Outlined.Cloud, "Forecast", false)
-            NavItem(Icons.Outlined.NotificationsNone, "Alerts", false)
-            NavItem(Icons.Outlined.GridView, "More", false)
+            NavItem(Icons.Outlined.WbSunny, "Weather", true, onClick = {})
+            NavItem(Icons.Outlined.Map, "Map", false, onClick = onOpenRadar)
+            NavItem(Icons.Outlined.Cloud, "Forecast", false, onClick = onOpenForecast)
+            NavItem(Icons.Outlined.NotificationsNone, "Alerts", false, onClick = onOpenAlerts)
+            NavItem(Icons.Outlined.GridView, "More", false, onClick = onOpenMore)
         }
     }
 }
@@ -404,10 +476,16 @@ private fun BottomNavigation() {
 private fun NavItem(
     icon: ImageVector,
     label: String,
-    selected: Boolean
+    selected: Boolean,
+    onClick: () -> Unit
 ) {
     val tint = if (selected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.54f)
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(17.dp))
         Text(
             text = label,
