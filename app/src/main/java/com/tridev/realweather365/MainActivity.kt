@@ -1,6 +1,7 @@
 package com.tridev.realweather365
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
@@ -47,8 +48,11 @@ import com.tridev.realweather365.widget.WeatherWidgetUpdater
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
+    private var requestedDestination by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        requestedDestination = destinationFromIntent(intent)
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = Color.TRANSPARENT
@@ -67,6 +71,13 @@ class MainActivity : ComponentActivity() {
                 var destination by rememberSaveable { mutableStateOf("weather") }
                 var notificationPermissionGranted by remember {
                     mutableStateOf(hasNotificationRuntimePermission())
+                }
+
+                LaunchedEffect(requestedDestination) {
+                    requestedDestination?.let { deepLink ->
+                        destination = deepLink
+                        requestedDestination = null
+                    }
                 }
 
                 val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -224,12 +235,43 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        requestedDestination = destinationFromIntent(intent)
+    }
+
+    private fun destinationFromIntent(intent: Intent?): String? {
+        val requested = intent?.getStringExtra(EXTRA_START_DESTINATION) ?: return null
+        return requested.takeIf {
+            it in setOf(
+                "weather",
+                "radar",
+                "forecast24",
+                "forecast10",
+                "airQuality",
+                "severeAlert",
+                "forecastRisk",
+                "weatherDetails",
+                "globalLocation",
+                "personalization",
+                "widgets",
+                "smartNotifications",
+                "settings"
+            )
+        }
+    }
+
     private fun hasNotificationRuntimePermission(): Boolean {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    companion object {
+        const val EXTRA_START_DESTINATION = "com.tridev.realweather365.START_DESTINATION"
     }
 }
 
