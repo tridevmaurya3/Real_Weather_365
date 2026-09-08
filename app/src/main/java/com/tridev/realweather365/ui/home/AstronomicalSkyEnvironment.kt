@@ -25,15 +25,6 @@ fun AstronomicalSkyEnvironment(
     modifier: Modifier = Modifier
 ) {
     val transition = rememberInfiniteTransition(label = "astronomical-sky")
-    val cloudShift = transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 76000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "solar-cloud-drift"
-    )
     val waterShift = transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -48,7 +39,8 @@ fun AstronomicalSkyEnvironment(
         drawAstronomicalSky(solar)
         drawTwilightStars(solar)
         drawAstronomicalSun(solar, cloudCover)
-        drawSolarClouds(solar, cloudCover, cloudShift.value)
+        // Clouds are rendered once by RealCloudSystem so their live coverage,
+        // wind, depth and lighting stay physically consistent across scenes.
         drawSolarMountainWorld(solar)
         drawSolarLake(solar, waterShift.value)
         drawSolarForest(solar)

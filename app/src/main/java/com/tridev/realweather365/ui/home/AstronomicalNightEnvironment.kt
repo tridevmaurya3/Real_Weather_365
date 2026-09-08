@@ -26,15 +26,6 @@ fun AstronomicalNightEnvironment(
     modifier: Modifier = Modifier
 ) {
     val transition = rememberInfiniteTransition(label = "astronomical-night")
-    val cloudShift = transition.animateFloat(
-        initialValue = -0.18f,
-        targetValue = 1.18f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 62000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "night-cloud-drift"
-    )
     val waterShift = transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -73,7 +64,8 @@ fun AstronomicalNightEnvironment(
         drawNightMountainWorld(moonlight)
         drawNightLake(moon, moonlight, waterShift.value)
         drawNightForestAstronomy(moonlight)
-        drawAstronomicalNightClouds(cloudCover, cloudShift.value)
+        // RealCloudSystem owns night clouds as well, preventing a second
+        // cartoon-like layer from drifting through the volumetric deck.
         drawNightVignetteAstronomy(moonlight)
     }
 }

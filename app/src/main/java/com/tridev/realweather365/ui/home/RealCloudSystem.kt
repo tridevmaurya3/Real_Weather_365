@@ -2,6 +2,7 @@ package com.tridev.realweather365.ui.home
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -15,6 +16,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.Path
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -40,8 +42,13 @@ fun RealCloudSystem(
     animationLevel: Int,
     modifier: Modifier = Modifier
 ) {
-    val cover = cloudCover.coerceIn(0, 100)
-    if (cover <= 2 && scene !in setOf(WeatherScene.RAIN, WeatherScene.THUNDERSTORM, WeatherScene.SNOW)) return
+    val targetCover = cloudCover.coerceIn(0, 100).toFloat()
+    val cover = animateFloatAsState(
+        targetValue = targetCover,
+        animationSpec = tween(durationMillis = 2_400),
+        label = "physical-cloud-coverage"
+    ).value
+    if (cover <= 0.5f && scene !in setOf(WeatherScene.RAIN, WeatherScene.THUNDERSTORM, WeatherScene.SNOW)) return
 
     val style = cloudStyle(scene, condition)
     val motionFactor = (0.38f + windSpeed.coerceIn(0, 95) / 28f).coerceIn(0.38f, 3.5f)
@@ -143,7 +150,7 @@ private fun cloudStyle(scene: WeatherScene, condition: String): CloudAtmosphereS
 }
 
 private fun DrawScope.drawHighCloudLayer(
-    cover: Int,
+    cover: Float,
     style: CloudAtmosphereStyle,
     progress: Float,
     flowX: Float,
@@ -153,7 +160,7 @@ private fun DrawScope.drawHighCloudLayer(
     moonLight: Float,
     quality: Float
 ) {
-    val count = (((cover + 12) / 18f) * quality).toInt().coerceIn(0, 6)
+    val count = (((cover + 12f) / 18f) * quality).toInt().coerceIn(0, 6)
     if (count == 0) return
     val baseAlpha = (0.05f + cover / 100f * 0.12f) * when (style) {
         CloudAtmosphereStyle.STORM, CloudAtmosphereStyle.RAIN -> 0.72f
@@ -191,7 +198,7 @@ private fun DrawScope.drawHighCloudLayer(
 }
 
 private fun DrawScope.drawMidCloudLayer(
-    cover: Int,
+    cover: Float,
     style: CloudAtmosphereStyle,
     progress: Float,
     flowX: Float,
@@ -206,7 +213,7 @@ private fun DrawScope.drawMidCloudLayer(
         CloudAtmosphereStyle.STORM -> 1.28f
         else -> 0.92f
     }
-    val count = (((cover + 6) / 16f) * styleBoost * quality).toInt().coerceIn(0, 8)
+    val count = (((cover + 6f) / 16f) * styleBoost * quality).toInt().coerceIn(0, 8)
     if (count == 0) return
     val palette = cloudPalette(style, daylight, warmth, moonLight)
 
@@ -219,20 +226,21 @@ private fun DrawScope.drawMidCloudLayer(
         val yBase = size.height * (0.16f + (index % 5) * 0.047f)
         val y = yBase + progress * size.height * 0.065f * flowY
         val alpha = (0.09f + cover / 100f * 0.22f).coerceAtMost(0.34f)
-        drawPuffyCloud(
+        drawVolumetricCloud(
             x = x,
             y = y,
             width = width,
             height = height,
             top = palette.first.copy(alpha = alpha),
             bottom = palette.second.copy(alpha = alpha * 0.92f),
-            puffiness = 0.78f
+            density = 0.78f,
+            lightFromLeft = flowX >= -0.15f
         )
     }
 }
 
 private fun DrawScope.drawLowCloudLayer(
-    cover: Int,
+    cover: Float,
     style: CloudAtmosphereStyle,
     progress: Float,
     flowX: Float,
@@ -249,7 +257,7 @@ private fun DrawScope.drawLowCloudLayer(
         CloudAtmosphereStyle.OVERCAST -> 1.15f
         else -> 0.86f
     }
-    val count = (((cover + 4) / 14f) * weatherBoost * quality).toInt().coerceIn(0, 10)
+    val count = (((cover + 4f) / 14f) * weatherBoost * quality).toInt().coerceIn(0, 10)
     if (count == 0) return
     val palette = cloudPalette(style, daylight, warmth, moonLight)
 
@@ -292,14 +300,15 @@ private fun DrawScope.drawLowCloudLayer(
             else -> 0.22f
         }
         val alpha = (alphaBase * (0.58f + cover / 100f * 0.62f)).coerceIn(0.10f, 0.78f)
-        drawPuffyCloud(
+        drawVolumetricCloud(
             x = x,
             y = y,
             width = width,
             height = height,
             top = palette.first.copy(alpha = alpha),
             bottom = palette.second.copy(alpha = (alpha * 1.08f).coerceAtMost(0.84f)),
-            puffiness = if (style == CloudAtmosphereStyle.STORM) 1.12f else 0.94f
+            density = if (style == CloudAtmosphereStyle.STORM) 1.12f else 0.94f,
+            lightFromLeft = flowX >= -0.15f
         )
 
         if (style == CloudAtmosphereStyle.RAIN || style == CloudAtmosphereStyle.STORM) {
@@ -316,15 +325,52 @@ private fun DrawScope.drawLowCloudLayer(
     }
 }
 
-private fun DrawScope.drawPuffyCloud(
+private fun DrawScope.drawVolumetricCloud(
     x: Float,
     y: Float,
     width: Float,
     height: Float,
     top: Color,
     bottom: Color,
-    puffiness: Float
+    density: Float,
+    lightFromLeft: Boolean
 ) {
+    // A wide translucent envelope removes the hard cut-out edge typical of
+    // stacked circles and gives each formation a humid, atmospheric falloff.
+    drawOval(
+        brush = Brush.radialGradient(
+            colors = listOf(
+                top.copy(alpha = top.alpha * 0.20f),
+                bottom.copy(alpha = bottom.alpha * 0.16f),
+                Color.Transparent
+            ),
+            center = Offset(x + width * 0.50f, y + height * 0.52f),
+            radius = width * 0.58f
+        ),
+        topLeft = Offset(x - width * 0.08f, y - height * 0.55f),
+        size = Size(width * 1.16f, height * 2.05f)
+    )
+
+    val silhouette = Path().apply {
+        moveTo(x + width * 0.03f, y + height * 0.72f)
+        cubicTo(x + width * 0.04f, y + height * 0.39f, x + width * 0.13f, y + height * 0.31f, x + width * 0.23f, y + height * 0.38f)
+        cubicTo(x + width * 0.27f, y + height * 0.02f, x + width * 0.42f, y - height * 0.18f, x + width * 0.53f, y + height * 0.16f)
+        cubicTo(x + width * 0.65f, y - height * 0.04f, x + width * 0.79f, y + height * 0.10f, x + width * 0.79f, y + height * 0.36f)
+        cubicTo(x + width * 0.94f, y + height * 0.29f, x + width * 1.01f, y + height * 0.48f, x + width * 0.96f, y + height * 0.72f)
+        cubicTo(x + width * 0.74f, y + height * 0.92f, x + width * 0.24f, y + height * 0.94f, x + width * 0.03f, y + height * 0.72f)
+        close()
+    }
+    drawPath(
+        path = silhouette,
+        brush = Brush.verticalGradient(
+            0f to top,
+            0.48f to mixCloud(top, bottom, 0.44f),
+            1f to bottom,
+            startY = y - height * 0.18f,
+            endY = y + height
+        )
+    )
+
     drawOval(
         brush = Brush.verticalGradient(
             listOf(top, bottom),
@@ -334,25 +380,42 @@ private fun DrawScope.drawPuffyCloud(
         topLeft = Offset(x, y),
         size = Size(width, height)
     )
-    val puffs = listOf(
-        Triple(0.18f, 0.18f, 0.18f),
-        Triple(0.36f, 0.02f, 0.25f),
-        Triple(0.56f, -0.10f, 0.30f),
-        Triple(0.76f, 0.10f, 0.21f)
+    val volumes = listOf(
+        Triple(0.15f, 0.34f, 0.17f),
+        Triple(0.29f, 0.13f, 0.23f),
+        Triple(0.45f, -0.02f, 0.29f),
+        Triple(0.61f, 0.08f, 0.25f),
+        Triple(0.77f, 0.25f, 0.20f),
+        Triple(0.89f, 0.42f, 0.13f)
     )
-    puffs.forEachIndexed { index, (px, py, pr) ->
-        val radius = width * pr * 0.55f * puffiness
-        val c = mixCloud(bottom, top, 0.52f + index * 0.08f)
+    volumes.forEachIndexed { index, (px, py, pr) ->
+        val radius = width * pr * 0.48f * density
+        val litSide = if (lightFromLeft) 1f - px else px
+        val highlight = mixCloud(bottom, top, 0.42f + litSide * 0.40f)
         drawCircle(
-            color = c,
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    highlight.copy(alpha = highlight.alpha * (0.82f + litSide * 0.14f)),
+                    mixCloud(highlight, bottom, 0.40f).copy(alpha = highlight.alpha * 0.78f),
+                    Color.Transparent
+                ),
+                center = Offset(x + width * px, y + height * (0.44f + py)),
+                radius = radius
+            ),
             radius = radius,
             center = Offset(x + width * px, y + height * (0.44f + py))
         )
     }
+
+    // Moisture-rich bases are flatter and darker than the illuminated crown.
     drawOval(
-        color = bottom.copy(alpha = bottom.alpha * 0.58f),
-        topLeft = Offset(x + width * 0.08f, y + height * 0.65f),
-        size = Size(width * 0.84f, height * 0.35f)
+        brush = Brush.verticalGradient(
+            listOf(bottom.copy(alpha = bottom.alpha * 0.18f), bottom.copy(alpha = bottom.alpha * 0.72f), Color.Transparent),
+            startY = y + height * 0.54f,
+            endY = y + height * 1.12f
+        ),
+        topLeft = Offset(x + width * 0.04f, y + height * 0.55f),
+        size = Size(width * 0.92f, height * 0.58f)
     )
 }
 
