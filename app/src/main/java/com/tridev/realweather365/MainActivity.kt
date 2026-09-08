@@ -14,6 +14,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tridev.realweather365.ui.airquality.AirQualityScreen
 import com.tridev.realweather365.ui.alerts.SevereWeatherAlertScreen
+import com.tridev.realweather365.ui.details.WeatherDetailsScreen
 import com.tridev.realweather365.ui.forecast.Forecast10DayScreen
 import com.tridev.realweather365.ui.forecast.Forecast24HourScreen
 import com.tridev.realweather365.ui.home.WeatherHomeScreen
@@ -37,7 +38,7 @@ class MainActivity : ComponentActivity() {
             RealWeather365Theme {
                 val viewModel: WeatherHomeViewModel = viewModel()
                 val uiState = viewModel.uiState.collectAsStateWithLifecycle()
-                var destination by rememberSaveable { mutableStateOf("severeAlert") }
+                var destination by rememberSaveable { mutableStateOf("weatherDetails") }
 
                 BackHandler(enabled = destination != "weather") {
                     destination = "weather"
@@ -65,6 +66,11 @@ class MainActivity : ComponentActivity() {
                     )
 
                     "severeAlert" -> SevereWeatherAlertScreen(
+                        location = uiState.value.location,
+                        onBack = { destination = "weather" }
+                    )
+
+                    "weatherDetails" -> WeatherDetailsScreen(
                         location = uiState.value.location,
                         onBack = { destination = "weather" }
                     )
