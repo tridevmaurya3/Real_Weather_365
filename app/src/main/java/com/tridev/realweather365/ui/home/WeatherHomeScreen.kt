@@ -1,5 +1,7 @@
 package com.tridev.realweather365.ui.home
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -52,20 +54,21 @@ fun WeatherHomeScreen(
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxSize()) {
-        SunnyEnvironment()
+        Crossfade(
+            targetState = state.scene,
+            animationSpec = tween(durationMillis = 900),
+            label = "weather-world-transition"
+        ) { scene ->
+            when (scene) {
+                WeatherScene.SUNNY -> SunnyEnvironment()
+                WeatherScene.SUNRISE -> SunriseEnvironment()
+            }
+        }
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        0f to Color(0x19000B12),
-                        0.22f to Color.Transparent,
-                        0.55f to Color.Transparent,
-                        0.73f to Color(0x33000A0F),
-                        1f to Color(0xE206131A)
-                    )
-                )
+                .background(sceneScrim(state.scene))
         )
 
         Column(
@@ -87,6 +90,24 @@ fun WeatherHomeScreen(
             Spacer(modifier = Modifier.height(3.dp))
         }
     }
+}
+
+private fun sceneScrim(scene: WeatherScene): Brush = when (scene) {
+    WeatherScene.SUNNY -> Brush.verticalGradient(
+        0f to Color(0x19000B12),
+        0.22f to Color.Transparent,
+        0.55f to Color.Transparent,
+        0.73f to Color(0x33000A0F),
+        1f to Color(0xE206131A)
+    )
+
+    WeatherScene.SUNRISE -> Brush.verticalGradient(
+        0f to Color(0x26020A14),
+        0.22f to Color.Transparent,
+        0.50f to Color(0x10000000),
+        0.72f to Color(0x4A090B0C),
+        1f to Color(0xEA071016)
+    )
 }
 
 @Composable
@@ -194,7 +215,11 @@ private fun HourlyForecastPanel(hourly: List<HourForecast>) {
                     Icon(
                         imageVector = Icons.Outlined.WbSunny,
                         contentDescription = item.condition,
-                        tint = Color(0xFFFFD44D),
+                        tint = if (item.condition.equals("Sunrise", ignoreCase = true)) {
+                            Color(0xFFFFC66B)
+                        } else {
+                            Color(0xFFFFD44D)
+                        },
                         modifier = Modifier
                             .padding(vertical = 4.dp)
                             .size(16.dp)
@@ -341,7 +366,7 @@ private fun NavItem(
 
 @Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
-private fun SunnyHomePreview() {
+private fun SunriseHomePreview() {
     RealWeather365Theme {
         WeatherHomeScreen(WeatherHomeUiState())
     }
