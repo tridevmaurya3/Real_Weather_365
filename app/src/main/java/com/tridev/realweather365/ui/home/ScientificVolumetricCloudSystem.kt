@@ -1,6 +1,7 @@
 package com.tridev.realweather365.ui.home
 
 import android.graphics.RuntimeShader
+import android.graphics.Paint
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.LinearEasing
@@ -13,8 +14,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.asFrameworkPaint
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import kotlin.math.PI
@@ -137,9 +136,9 @@ private fun AgslVolumetricClouds(
         shader.setFloatUniform("wind", flowX, flowY, windSpeed.coerceIn(0, 120) / 120f)
         shader.setFloatUniform("quality", if (animationLevel >= 2) 1f else 0.65f)
 
-        val paint = Paint().also { it.asFrameworkPaint().shader = shader }
+        val paint = Paint().also { it.shader = shader }
         drawIntoCanvas { canvas ->
-            canvas.nativeCanvas.drawRect(0f, 0f, size.width, size.height, paint.asFrameworkPaint())
+            canvas.nativeCanvas.drawRect(0f, 0f, size.width, size.height, paint)
         }
     }
 }
