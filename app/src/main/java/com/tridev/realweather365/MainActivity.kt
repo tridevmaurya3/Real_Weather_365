@@ -17,6 +17,7 @@ import com.tridev.realweather365.ui.alerts.SevereWeatherAlertScreen
 import com.tridev.realweather365.ui.details.WeatherDetailsScreen
 import com.tridev.realweather365.ui.forecast.Forecast10DayScreen
 import com.tridev.realweather365.ui.forecast.Forecast24HourScreen
+import com.tridev.realweather365.ui.home.WeatherHomeNavigation
 import com.tridev.realweather365.ui.home.WeatherHomeScreen
 import com.tridev.realweather365.ui.home.WeatherHomeViewModel
 import com.tridev.realweather365.ui.location.GlobalLocationScreen
@@ -39,7 +40,7 @@ class MainActivity : ComponentActivity() {
             RealWeather365Theme {
                 val viewModel: WeatherHomeViewModel = viewModel()
                 val uiState = viewModel.uiState.collectAsStateWithLifecycle()
-                var destination by rememberSaveable { mutableStateOf("globalLocation") }
+                var destination by rememberSaveable { mutableStateOf("weather") }
 
                 BackHandler(enabled = destination != "weather") {
                     destination = "weather"
@@ -85,7 +86,18 @@ class MainActivity : ComponentActivity() {
                         onBack = { destination = "weather" }
                     )
 
-                    else -> WeatherHomeScreen(uiState.value)
+                    else -> WeatherHomeScreen(
+                        state = uiState.value,
+                        navigation = WeatherHomeNavigation(
+                            openLocations = { destination = "globalLocation" },
+                            openRadar = { destination = "radar" },
+                            openForecast24 = { destination = "forecast24" },
+                            openForecast10 = { destination = "forecast10" },
+                            openAirQuality = { destination = "airQuality" },
+                            openAlerts = { destination = "severeAlert" },
+                            openDetails = { destination = "weatherDetails" }
+                        )
+                    )
                 }
             }
         }
