@@ -10,7 +10,6 @@ import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -42,13 +41,25 @@ class OpenMeteoMapLayerRepository {
         location: WorldLocation,
         gridSize: Int = 7,
         halfSpanLatitudeDegrees: Double = 2.4
+    ): SpatialWeatherField = load(
+        centerLatitude = location.latitude,
+        centerLongitude = location.longitude,
+        gridSize = gridSize,
+        halfSpanLatitudeDegrees = halfSpanLatitudeDegrees
+    )
+
+    suspend fun load(
+        centerLatitude: Double,
+        centerLongitude: Double,
+        gridSize: Int = 7,
+        halfSpanLatitudeDegrees: Double = 2.4
     ): SpatialWeatherField = withContext(Dispatchers.IO) {
         val size = gridSize.coerceIn(3, 9).let { if (it % 2 == 0) it + 1 else it }
-        val centerLat = location.latitude.coerceIn(-84.0, 84.0)
-        val centerLon = normalizeLongitude(location.longitude)
-        val latitudeHalfSpan = min(3.0, max(0.8, halfSpanLatitudeDegrees))
-        val longitudeScale = max(0.35, abs(cos(Math.toRadians(centerLat))))
-        val longitudeHalfSpan = min(6.5, latitudeHalfSpan / longitudeScale)
+        val centerLat = centerLatitude.coerceIn(-84.0, 84.0)
+        val centerLon = normalizeLongitude(centerLongitude)
+        val latitudeHalfSpan = min(4.5, max(0.35, halfSpanLatitudeDegrees))
+        val longitudeScale = max(0.28, abs(cos(Math.toRadians(centerLat))))
+        val longitudeHalfSpan = min(9.0, latitudeHalfSpan / longitudeScale)
         val latitudeStep = (latitudeHalfSpan * 2.0) / (size - 1)
         val longitudeStep = (longitudeHalfSpan * 2.0) / (size - 1)
 
@@ -130,7 +141,7 @@ class OpenMeteoMapLayerRepository {
             requestMethod = "GET"
             instanceFollowRedirects = true
             setRequestProperty("Accept", "application/json")
-            setRequestProperty("User-Agent", "RealWeather365/0.27")
+            setRequestProperty("User-Agent", "RealWeather365/0.28")
         }
         return try {
             val code = connection.responseCode
