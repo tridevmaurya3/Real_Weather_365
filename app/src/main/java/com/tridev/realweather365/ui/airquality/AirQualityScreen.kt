@@ -25,7 +25,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Eco
 import androidx.compose.material.icons.outlined.LocationOn
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Icon
@@ -41,201 +40,106 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tridev.realweather365.ui.theme.RealWeather365Theme
+import com.tridev.realweather365.data.weather.WmoWeather
+import com.tridev.realweather365.ui.home.WeatherHomeUiState
+import kotlin.math.roundToInt
 
 private data class Pollutant(
     val label: String,
-    val value: Int,
+    val value: Double?,
     val unit: String,
-    val level: String,
     val tint: Color
-)
-
-private val pollutants = listOf(
-    Pollutant("PM2.5", 56, "µg/m³", "Elevated", Color(0xFFFFD65A)),
-    Pollutant("PM10", 78, "µg/m³", "Elevated", Color(0xFFFFB84D)),
-    Pollutant("NO₂", 22, "µg/m³", "Good", Color(0xFF77E59A)),
-    Pollutant("O₃", 96, "µg/m³", "Moderate", Color(0xFFB8D94C))
 )
 
 @Composable
 fun AirQualityScreen(
-    location: String,
+    state: WeatherHomeUiState,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val pollutants = listOf(
+        Pollutant("PM2.5", state.pm25, "µg/m³", Color(0xFFFFD65A)),
+        Pollutant("PM10", state.pm10, "µg/m³", Color(0xFFFFB84D)),
+        Pollutant("NO₂", state.nitrogenDioxide, "µg/m³", Color(0xFF77E59A)),
+        Pollutant("O₃", state.ozone, "µg/m³", Color(0xFFB8D94C))
+    )
+
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        Color(0xFF071923),
-                        Color(0xFF0B2734),
-                        Color(0xFF071821),
-                        Color(0xFF041017)
-                    )
-                )
-            )
+        modifier = modifier.fillMaxSize().background(
+            Brush.verticalGradient(listOf(Color(0xFF071923), Color(0xFF0B2734), Color(0xFF071821), Color(0xFF041017)))
+        )
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            AirQualityHeader(location = location, onBack = onBack)
-
+        Column(Modifier.fillMaxSize()) {
+            Header(state.location, state.updatedAt, onBack)
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp, vertical = 12.dp)
+                modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 12.dp)
             ) {
-                AirQualityHeroCard()
-                Spacer(modifier = Modifier.height(10.dp))
-                HealthMessageCard()
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Text(
-                    text = "Air pollutants",
-                    color = Color.White.copy(alpha = 0.86f),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.height(7.dp))
-                PollutantGrid()
-                Spacer(modifier = Modifier.height(10.dp))
-                ExposureCard()
-                Spacer(modifier = Modifier.height(8.dp))
+                HeroCard(state)
+                Spacer(Modifier.height(10.dp))
+                GuidanceCard(state.aqi)
+                Spacer(Modifier.height(10.dp))
+                Text("Air pollutants", color = Color.White.copy(alpha = 0.86f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(7.dp))
+                PollutantGrid(pollutants)
+                Spacer(Modifier.height(10.dp))
+                OutlookCard(state)
+                Spacer(Modifier.height(8.dp))
             }
-
-            AirQualityFooter()
+            Footer("LIVE AIR QUALITY • ${state.provider}")
         }
     }
 }
 
 @Composable
-private fun AirQualityHeader(location: String, onBack: () -> Unit) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .statusBarsPadding(),
-        color = Color(0xEE071720),
-        tonalElevation = 0.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(58.dp)
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clickable(onClick = onBack),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.ArrowBack,
-                    contentDescription = "Back",
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
+private fun Header(location: String, subtitle: String, onBack: () -> Unit) {
+    Surface(modifier = Modifier.fillMaxWidth().statusBarsPadding(), color = Color(0xEE071720)) {
+        Row(Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(40.dp).clickable(onClick = onBack), contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.ArrowBack, "Back", tint = Color.White)
             }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Outlined.LocationOn,
-                        contentDescription = null,
-                        tint = Color(0xFF75E5F0),
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Text(
-                        text = location,
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Icon(Icons.Outlined.LocationOn, null, tint = Color(0xFF75E5F0), modifier = Modifier.size(13.dp))
+                    Text(location, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 }
-                Text(
-                    text = "Air Quality",
-                    color = Color.White.copy(alpha = 0.58f),
-                    fontSize = 9.sp,
-                    letterSpacing = 0.4.sp
-                )
+                Text("Air Quality • $subtitle", color = Color.White.copy(alpha = 0.55f), fontSize = 8.sp, maxLines = 1)
             }
-
-            Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Outlined.MoreVert,
-                    contentDescription = "More",
-                    tint = Color.White.copy(alpha = 0.86f),
-                    modifier = Modifier.size(21.dp)
-                )
-            }
+            Spacer(Modifier.size(40.dp))
         }
     }
 }
 
 @Composable
-private fun AirQualityHeroCard() {
+private fun HeroCard(state: WeatherHomeUiState) {
+    val aqi = state.aqi
+    val label = WmoWeather.aqiLabel(aqi)
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
         color = Color(0xA0081B25),
-        border = BorderStroke(0.7.dp, Color.White.copy(alpha = 0.14f)),
-        tonalElevation = 0.dp
+        border = BorderStroke(0.7.dp, Color.White.copy(alpha = 0.14f))
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AqiGauge(value = 78, modifier = Modifier.size(154.dp))
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
+        Row(Modifier.padding(horizontal = 14.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            AqiGauge(aqi, Modifier.size(154.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
                 Text(
-                    text = "Air quality is acceptable",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    lineHeight = 20.sp,
-                    fontWeight = FontWeight.SemiBold
+                    if (aqi == null) "Air-quality data unavailable" else "Air quality is ${label.lowercase()}",
+                    color = Color.White, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold
                 )
-                Spacer(modifier = Modifier.height(5.dp))
+                Spacer(Modifier.height(5.dp))
                 Text(
-                    text = "For most people, outdoor activity is fine. Sensitive people may prefer shorter periods of heavy exertion.",
-                    color = Color.White.copy(alpha = 0.62f),
-                    fontSize = 9.sp,
-                    lineHeight = 13.sp
+                    aqiMessage(aqi),
+                    color = Color.White.copy(alpha = 0.62f), fontSize = 9.sp, lineHeight = 13.sp
                 )
-                Spacer(modifier = Modifier.height(10.dp))
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color(0x3327D17F),
-                    border = BorderStroke(0.6.dp, Color(0xFF64E79A).copy(alpha = 0.42f))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Eco,
-                            contentDescription = null,
-                            tint = Color(0xFF77E59A),
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Text(
-                            text = "Enjoy regular activities",
-                            color = Color(0xFFB8F3C9),
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                Spacer(Modifier.height(10.dp))
+                Surface(shape = RoundedCornerShape(12.dp), color = Color(0x3327D17F)) {
+                    Row(Modifier.padding(horizontal = 9.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.Eco, null, tint = Color(0xFF77E59A), modifier = Modifier.size(15.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("US AQI • live location data", color = Color(0xFFB8F3C9), fontSize = 8.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -244,279 +148,142 @@ private fun AirQualityHeroCard() {
 }
 
 @Composable
-private fun AqiGauge(value: Int, modifier: Modifier = Modifier) {
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val stroke = 13f
+private fun AqiGauge(value: Int?, modifier: Modifier = Modifier) {
+    val safe = value ?: 0
+    val label = WmoWeather.aqiLabel(value)
+    Box(modifier, contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val colors = listOf(Color(0xFF59D872), Color(0xFFC9D83B), Color(0xFFFFC23D), Color(0xFFFF7043), Color(0xFFD94C78))
             val start = 145f
             val total = 250f
-            val segmentGap = 4f
-            val colors = listOf(
-                Color(0xFF59D872),
-                Color(0xFFC9D83B),
-                Color(0xFFFFC23D),
-                Color(0xFFFF7043),
-                Color(0xFFD94C78)
-            )
             val sweep = total / colors.size
-
-            colors.forEachIndexed { index, color ->
-                drawArc(
-                    color = color.copy(alpha = 0.24f),
-                    startAngle = start + index * sweep,
-                    sweepAngle = sweep - segmentGap,
-                    useCenter = false,
-                    style = Stroke(width = stroke, cap = StrokeCap.Round)
-                )
-            }
-
-            val progress = (value / 200f).coerceIn(0f, 1f)
+            val progress = (safe / 300f).coerceIn(0f, 1f)
             val activeSweep = total * progress
-            var remaining = activeSweep
-
             colors.forEachIndexed { index, color ->
-                if (remaining <= 0f) return@forEachIndexed
-                val segmentSweep = minOf(sweep - segmentGap, remaining)
-                drawArc(
-                    color = color,
-                    startAngle = start + index * sweep,
-                    sweepAngle = segmentSweep,
-                    useCenter = false,
-                    style = Stroke(width = stroke, cap = StrokeCap.Round)
-                )
-                remaining -= sweep
+                drawArc(color.copy(alpha = 0.22f), start + index * sweep, sweep - 4f, false, style = Stroke(width = 13f, cap = StrokeCap.Round))
             }
-
-            val markerAngle = Math.toRadians((start + activeSweep).toDouble())
-            val radius = size.minDimension / 2f - stroke / 2f
-            val center = Offset(size.width / 2f, size.height / 2f)
-            val marker = Offset(
-                x = center.x + kotlin.math.cos(markerAngle).toFloat() * radius,
-                y = center.y + kotlin.math.sin(markerAngle).toFloat() * radius
-            )
-            drawCircle(Color.White, radius = 4.6f, center = marker)
+            var remaining = activeSweep
+            colors.forEachIndexed { index, color ->
+                if (remaining > 0f) {
+                    val segment = minOf(sweep - 4f, remaining)
+                    drawArc(color, start + index * sweep, segment, false, style = Stroke(width = 13f, cap = StrokeCap.Round))
+                    remaining -= sweep
+                }
+            }
         }
-
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = value.toString(),
-                color = Color.White,
-                fontSize = 38.sp,
-                lineHeight = 40.sp,
-                fontWeight = FontWeight.Light
-            )
-            Text(
-                text = "Moderate",
-                color = Color(0xFFFFD65A),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = "AQI",
-                color = Color.White.copy(alpha = 0.50f),
-                fontSize = 8.sp
-            )
+            Text(value?.toString() ?: "--", color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.Light)
+            Text(label, color = aqiTint(value), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Text("AQI", color = Color.White.copy(alpha = 0.48f), fontSize = 8.sp)
         }
     }
 }
 
 @Composable
-private fun HealthMessageCard() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = Color(0x94081922),
-        border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.12f))
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .background(Color(0x263CE7F3), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Shield,
-                    contentDescription = null,
-                    tint = Color(0xFF6FE4EE),
-                    modifier = Modifier.size(18.dp)
-                )
+private fun GuidanceCard(aqi: Int?) {
+    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = Color(0x94081922), border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.12f))) {
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(34.dp).background(Color(0x263CE7F3), CircleShape), contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.Shield, null, tint = Color(0xFF6FE4EE), modifier = Modifier.size(18.dp))
             }
-            Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Today’s air-quality guidance",
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = "Normal outdoor plans are suitable. If you are unusually sensitive to pollution, watch for discomfort during prolonged activity.",
-                    color = Color.White.copy(alpha = 0.58f),
-                    fontSize = 8.sp,
-                    lineHeight = 12.sp
-                )
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Air-quality guidance", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Text(aqiGuidance(aqi), color = Color.White.copy(alpha = 0.58f), fontSize = 8.sp, lineHeight = 12.sp)
             }
         }
     }
 }
 
 @Composable
-private fun PollutantGrid() {
+private fun PollutantGrid(pollutants: List<Pollutant>) {
     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
         pollutants.chunked(2).forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(7.dp)
-            ) {
-                row.forEach { pollutant ->
-                    PollutantCard(pollutant = pollutant, modifier = Modifier.weight(1f))
-                }
-                if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                row.forEach { pollutant -> PollutantCard(pollutant, Modifier.weight(1f)) }
             }
         }
     }
 }
 
 @Composable
-private fun PollutantCard(pollutant: Pollutant, modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        color = Color(0x9A071922),
-        border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.12f))
-    ) {
-        Column(modifier = Modifier.padding(11.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = pollutant.label,
-                    color = Color.White.copy(alpha = 0.66f),
-                    fontSize = 9.sp
-                )
-                Box(
-                    modifier = Modifier
-                        .size(7.dp)
-                        .background(pollutant.tint, CircleShape)
-                )
+private fun PollutantCard(pollutant: Pollutant, modifier: Modifier) {
+    val value = pollutant.value
+    Surface(modifier = modifier, shape = RoundedCornerShape(16.dp), color = Color(0x9A071922), border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.12f))) {
+        Column(Modifier.padding(11.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(pollutant.label, color = Color.White.copy(alpha = 0.66f), fontSize = 9.sp)
+                Box(Modifier.size(7.dp).background(pollutant.tint, CircleShape))
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = pollutant.value.toString(),
-                color = Color.White,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Light
-            )
-            Text(
-                text = pollutant.unit,
-                color = Color.White.copy(alpha = 0.45f),
-                fontSize = 7.sp
-            )
-            Spacer(modifier = Modifier.height(7.dp))
-            AirQualityBar(value = pollutant.value, tint = pollutant.tint)
-            Spacer(modifier = Modifier.height(5.dp))
-            Text(
-                text = pollutant.level,
-                color = pollutant.tint,
-                fontSize = 8.sp,
-                fontWeight = FontWeight.Medium
-            )
+            Spacer(Modifier.height(4.dp))
+            Text(value?.let { formatOneDecimal(it) } ?: "--", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Light)
+            Text(pollutant.unit, color = Color.White.copy(alpha = 0.45f), fontSize = 7.sp)
+            Spacer(Modifier.height(7.dp))
+            AirBar(value, pollutant.tint)
+            Spacer(Modifier.height(5.dp))
+            Text(if (value == null) "Unavailable" else "Live concentration", color = pollutant.tint, fontSize = 8.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
 
 @Composable
-private fun AirQualityBar(value: Int, tint: Color) {
-    Canvas(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(5.dp)
-    ) {
+private fun AirBar(value: Double?, tint: Color) {
+    Canvas(Modifier.fillMaxWidth().height(5.dp)) {
         val y = size.height / 2f
-        drawLine(
-            color = Color.White.copy(alpha = 0.12f),
-            start = Offset(0f, y),
-            end = Offset(size.width, y),
-            strokeWidth = size.height,
-            cap = StrokeCap.Round
-        )
-        drawLine(
-            color = tint,
-            start = Offset(0f, y),
-            end = Offset(size.width * (value / 150f).coerceIn(0f, 1f), y),
-            strokeWidth = size.height,
-            cap = StrokeCap.Round
-        )
+        drawLine(Color.White.copy(alpha = 0.12f), Offset(0f, y), Offset(size.width, y), strokeWidth = size.height, cap = StrokeCap.Round)
+        val progress = ((value ?: 0.0) / 150.0).coerceIn(0.0, 1.0).toFloat()
+        drawLine(tint, Offset(0f, y), Offset(size.width * progress, y), strokeWidth = size.height, cap = StrokeCap.Round)
     }
 }
 
 @Composable
-private fun ExposureCard() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = Color(0x90071922),
-        border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.11f))
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+private fun OutlookCard(state: WeatherHomeUiState) {
+    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = Color(0x90071922), border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.11f))) {
+        Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Outlined.Visibility,
-                    contentDescription = null,
-                    tint = Color(0xFF70E0EB),
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(7.dp))
-                Text(
-                    text = "Air quality outlook",
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Icon(Icons.Outlined.Visibility, null, tint = Color(0xFF70E0EB), modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(7.dp))
+                Text("Worldwide air-quality status", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(Modifier.height(7.dp))
             Text(
-                text = "Moderate conditions are expected through the next few hours, with gradual improvement later in the day.",
-                color = Color.White.copy(alpha = 0.58f),
-                fontSize = 8.sp,
-                lineHeight = 12.sp
+                "Coordinates ${"%.3f".format(state.selectedLocation.latitude)}, ${"%.3f".format(state.selectedLocation.longitude)} • Updated with the selected location.",
+                color = Color.White.copy(alpha = 0.56f), fontSize = 8.sp, lineHeight = 12.sp
             )
         }
     }
 }
 
-@Composable
-private fun AirQualityFooter() {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding(),
-        color = Color(0xF1081820),
-        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f))
-    ) {
-        Text(
-            text = "AIR QUALITY • UPDATED 9:41 AM",
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 11.dp),
-            color = Color.White.copy(alpha = 0.48f),
-            fontSize = 8.sp,
-            textAlign = TextAlign.Center,
-            letterSpacing = 0.7.sp
-        )
-    }
+private fun aqiMessage(aqi: Int?): String = when {
+    aqi == null -> "The provider did not return a current AQI value for this location."
+    aqi <= 50 -> "Current air quality is in the good range."
+    aqi <= 100 -> "Current air quality is moderate."
+    aqi <= 150 -> "Air quality may affect people who are unusually sensitive to pollution."
+    aqi <= 200 -> "Air quality is unhealthy; consider reducing prolonged outdoor exertion."
+    else -> "Air quality is poor; pay attention to local public-health advice."
 }
 
-@Preview(showBackground = true, widthDp = 390, heightDp = 844)
+private fun aqiGuidance(aqi: Int?): String = when {
+    aqi == null -> "AQI guidance will appear when live air-quality data is available."
+    aqi <= 100 -> "Normal outdoor plans are generally suitable; people who are sensitive to pollution can monitor symptoms and local guidance."
+    aqi <= 150 -> "Sensitive people may prefer shorter periods of strenuous outdoor activity."
+    else -> "Consider limiting prolonged strenuous outdoor activity and follow local health guidance."
+}
+
+private fun aqiTint(aqi: Int?): Color = when {
+    aqi == null -> Color.White.copy(alpha = 0.55f)
+    aqi <= 50 -> Color(0xFF77E59A)
+    aqi <= 100 -> Color(0xFFFFD65A)
+    aqi <= 150 -> Color(0xFFFFB84D)
+    aqi <= 200 -> Color(0xFFFF7043)
+    else -> Color(0xFFD94C78)
+}
+
+private fun formatOneDecimal(value: Double): String = if (value % 1.0 == 0.0) value.roundToInt().toString() else String.format("%.1f", value)
+
 @Composable
-private fun AirQualityPreview() {
-    RealWeather365Theme {
-        AirQualityScreen(location = "Chandauli", onBack = {})
+private fun Footer(text: String) {
+    Surface(modifier = Modifier.fillMaxWidth().navigationBarsPadding(), color = Color(0xEE041119)) {
+        Text(text, modifier = Modifier.fillMaxWidth().padding(10.dp), textAlign = TextAlign.Center, color = Color.White.copy(alpha = 0.42f), fontSize = 8.sp)
     }
 }

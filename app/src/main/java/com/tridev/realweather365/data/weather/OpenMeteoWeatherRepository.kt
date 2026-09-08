@@ -11,6 +11,7 @@ import java.util.Locale
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 
 data class LiveHourData(
@@ -42,7 +43,16 @@ data class LiveWeatherSnapshot(
     val pressure: Int,
     val windSpeed: Int,
     val windDirection: Int,
+    val windGusts: Int,
+    val cloudCover: Int,
+    val dewPoint: Int,
+    val visibilityKm: Double?,
     val aqi: Int?,
+    val pm25: Double?,
+    val pm10: Double?,
+    val nitrogenDioxide: Double?,
+    val ozone: Double?,
+    val uvIndex: Double?,
     val high: Int,
     val low: Int,
     val sunrise: String,
@@ -53,11 +63,27 @@ data class LiveWeatherSnapshot(
     val daily10: List<LiveDayData>
 )
 
+private data class LiveAirQuality(
+    val aqi: Int?,
+    val pm25: Double?,
+    val pm10: Double?,
+    val nitrogenDioxide: Double?,
+    val ozone: Double?,
+    val uvIndex: Double?
+)
+
 class OpenMeteoWeatherRepository {
     suspend fun load(location: WorldLocation): LiveWeatherSnapshot = withContext(Dispatchers.IO) {
         val weather = fetchWeather(location)
-        val aqi = runCatching { fetchAqi(location) }.getOrNull()
-        weather.copy(aqi = aqi)
+        val air = runCatching { fetchAirQuality(location) }.getOrNull()
+        weather.copy(
+            aqi = air?.aqi,
+            pm25 = air?.pm25,
+            pm10 = air?.pm10,
+            nitrogenDioxide = air?.nitrogenDioxide,
+            ozone = air?.ozone,
+            uvIndex = air?.uvIndex
+        )
     }
 
     private fun fetchWeather(location: WorldLocation): LiveWeatherSnapshot {
@@ -65,8 +91,8 @@ class OpenMeteoWeatherRepository {
             append("https://api.open-meteo.com/v1/forecast")
             append("?latitude=${location.latitude}")
             append("&longitude=${location.longitude}")
-            append("&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,is_day")
-            append("&hourly=temperature_2m,weather_code,precipitation_probability,is_day")
+            append("&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,cloud_cover,dew_point_2m,is_day")
+            append("&hourly=temperature_2m,weather_code,precipitation_probability,is_day,visibility")
             append("&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,sunrise,sunset")
             append("&forecast_days=10")
             append("&timezone=auto")
@@ -84,6 +110,7 @@ class OpenMeteoWeatherRepository {
         val hourlyCodes = hourly.getJSONArray("weather_code")
         val hourlyRain = hourly.getJSONArray("precipitation_probability")
         val hourlyIsDay = hourly.getJSONArray("is_day")
+        val hourlyVisibility = hourly.optJSONArray("visibility")
 
         var startIndex = 0
         for (index in 0 until hourlyTimes.length()) {
@@ -101,9 +128,9 @@ class OpenMeteoWeatherRepository {
                     LiveHourData(
                         isoTime = isoTime,
                         label = if (index == startIndex) "Now" else formatHour(isoTime),
-                        temperature = hourlyTemps.getDouble(index).roundToInt(),
-                        weatherCode = hourlyCodes.getInt(index),
-                        rainChance = hourlyRain.optInt(index, 0),
+                        temperature = hourlyTemps.numberAt(index)?.roundToInt() ?: 0,
+                        weatherCode = hourlyCodes.optInt(index, 0),
+                        rainChance = hourlyRain.numberAt(index)?.roundToInt() ?: 0,
                         isDay = hourlyIsDay.optInt(index, 0) == 1
                     )
                 )
@@ -122,6 +149,7 @@ class OpenMeteoWeatherRepository {
             for (index in 0 until minOf(10, dailyTimes.length())) {
                 val isoDate = dailyTimes.getString(index)
                 val parsedDate = runCatching { LocalDate.parse(isoDate) }.getOrNull()
+                val code = dailyCodes.optInt(index, 0)
                 add(
                     LiveDayData(
                         isoDate = isoDate,
@@ -131,28 +159,37 @@ class OpenMeteoWeatherRepository {
                         dateLabel = parsedDate?.format(
                             DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
                         ) ?: isoDate,
-                        condition = WmoWeather.condition(dailyCodes.getInt(index), true),
-                        low = dailyLow.getDouble(index).roundToInt(),
-                        high = dailyHigh.getDouble(index).roundToInt(),
-                        rainChance = dailyRain.optInt(index, 0),
-                        weatherCode = dailyCodes.getInt(index)
+                        condition = WmoWeather.condition(code, true),
+                        low = dailyLow.numberAt(index)?.roundToInt() ?: 0,
+                        high = dailyHigh.numberAt(index)?.roundToInt() ?: 0,
+                        rainChance = dailyRain.numberAt(index)?.roundToInt() ?: 0,
+                        weatherCode = code
                     )
                 )
             }
         }
 
         return LiveWeatherSnapshot(
-            temperature = current.getDouble("temperature_2m").roundToInt(),
-            feelsLike = current.getDouble("apparent_temperature").roundToInt(),
-            weatherCode = current.getInt("weather_code"),
+            temperature = current.optDouble("temperature_2m", 0.0).roundToInt(),
+            feelsLike = current.optDouble("apparent_temperature", 0.0).roundToInt(),
+            weatherCode = current.optInt("weather_code", 0),
             isDay = current.optInt("is_day", 1) == 1,
-            humidity = current.getDouble("relative_humidity_2m").roundToInt(),
-            pressure = current.getDouble("surface_pressure").roundToInt(),
-            windSpeed = current.getDouble("wind_speed_10m").roundToInt(),
-            windDirection = current.getDouble("wind_direction_10m").roundToInt(),
+            humidity = current.optDouble("relative_humidity_2m", 0.0).roundToInt(),
+            pressure = current.optDouble("surface_pressure", 0.0).roundToInt(),
+            windSpeed = current.optDouble("wind_speed_10m", 0.0).roundToInt(),
+            windDirection = current.optDouble("wind_direction_10m", 0.0).roundToInt(),
+            windGusts = current.optDouble("wind_gusts_10m", 0.0).roundToInt(),
+            cloudCover = current.optDouble("cloud_cover", 0.0).roundToInt(),
+            dewPoint = current.optDouble("dew_point_2m", 0.0).roundToInt(),
+            visibilityKm = hourlyVisibility?.numberAt(startIndex)?.div(1000.0),
             aqi = null,
-            high = dailyHigh.getDouble(0).roundToInt(),
-            low = dailyLow.getDouble(0).roundToInt(),
+            pm25 = null,
+            pm10 = null,
+            nitrogenDioxide = null,
+            ozone = null,
+            uvIndex = null,
+            high = dailyHigh.numberAt(0)?.roundToInt() ?: 0,
+            low = dailyLow.numberAt(0)?.roundToInt() ?: 0,
             sunrise = sunrise.optString(0),
             sunset = sunset.optString(0),
             observedAt = observedAt,
@@ -162,17 +199,23 @@ class OpenMeteoWeatherRepository {
         )
     }
 
-    private fun fetchAqi(location: WorldLocation): Int? {
+    private fun fetchAirQuality(location: WorldLocation): LiveAirQuality {
         val url = buildString {
             append("https://air-quality-api.open-meteo.com/v1/air-quality")
             append("?latitude=${location.latitude}")
             append("&longitude=${location.longitude}")
-            append("&current=us_aqi")
+            append("&current=us_aqi,pm2_5,pm10,nitrogen_dioxide,ozone,uv_index")
             append("&timezone=auto")
         }
-        val current = getJson(url).optJSONObject("current") ?: return null
-        val value = current.optDouble("us_aqi", Double.NaN)
-        return if (value.isFinite()) value.roundToInt() else null
+        val current = getJson(url).optJSONObject("current") ?: return LiveAirQuality(null, null, null, null, null, null)
+        return LiveAirQuality(
+            aqi = current.number("us_aqi")?.roundToInt(),
+            pm25 = current.number("pm2_5"),
+            pm10 = current.number("pm10"),
+            nitrogenDioxide = current.number("nitrogen_dioxide"),
+            ozone = current.number("ozone"),
+            uvIndex = current.number("uv_index")
+        )
     }
 
     private fun getJson(url: String): JSONObject {
@@ -183,12 +226,9 @@ class OpenMeteoWeatherRepository {
             setRequestProperty("Accept", "application/json")
             setRequestProperty("User-Agent", "RealWeather365/0.1")
         }
-
         return try {
             val code = connection.responseCode
-            if (code !in 200..299) {
-                throw IOException("Weather service returned HTTP $code")
-            }
+            if (code !in 200..299) throw IOException("Weather service returned HTTP $code")
             val body = connection.inputStream.bufferedReader().use { it.readText() }
             JSONObject(body)
         } finally {
@@ -203,6 +243,18 @@ class OpenMeteoWeatherRepository {
     private fun formatObservedTime(isoTime: String): String = runCatching {
         LocalDateTime.parse(isoTime).format(DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH))
     }.getOrElse { isoTime.takeLast(5) }
+}
+
+private fun JSONArray.numberAt(index: Int): Double? {
+    if (index !in 0 until length() || isNull(index)) return null
+    val value = optDouble(index, Double.NaN)
+    return value.takeIf { it.isFinite() }
+}
+
+private fun JSONObject.number(key: String): Double? {
+    if (!has(key) || isNull(key)) return null
+    val value = optDouble(key, Double.NaN)
+    return value.takeIf { it.isFinite() }
 }
 
 object WmoWeather {

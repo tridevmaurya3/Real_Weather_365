@@ -1,7 +1,6 @@
 package com.tridev.realweather365.ui.forecast
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,11 +21,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AcUnit
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.FlashOn
 import androidx.compose.material.icons.outlined.LocationOn
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.Icon
@@ -35,435 +34,173 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tridev.realweather365.ui.theme.RealWeather365Theme
-
-private data class DailyForecast(
-    val day: String,
-    val date: String,
-    val condition: String,
-    val low: Int,
-    val high: Int,
-    val rainChance: Int
-)
-
-private val tenDayForecast = listOf(
-    DailyForecast("Today", "8 Sep", "Light Rain", 24, 32, 70),
-    DailyForecast("Wed", "9 Sep", "Cloudy", 25, 33, 40),
-    DailyForecast("Thu", "10 Sep", "Rain", 24, 31, 65),
-    DailyForecast("Fri", "11 Sep", "Thunderstorm", 23, 30, 80),
-    DailyForecast("Sat", "12 Sep", "Cloudy", 24, 32, 35),
-    DailyForecast("Sun", "13 Sep", "Sunny", 25, 34, 10),
-    DailyForecast("Mon", "14 Sep", "Sunny", 25, 34, 10),
-    DailyForecast("Tue", "15 Sep", "Cloudy", 24, 33, 30),
-    DailyForecast("Wed", "16 Sep", "Rain", 24, 31, 60),
-    DailyForecast("Thu", "17 Sep", "Cloudy", 24, 32, 35)
-)
+import com.tridev.realweather365.data.weather.LiveDayData
+import com.tridev.realweather365.ui.home.WeatherHomeUiState
 
 @Composable
 fun Forecast10DayScreen(
-    location: String,
+    state: WeatherHomeUiState,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        Color(0xFF071923),
-                        Color(0xFF0A2230),
-                        Color(0xFF061720),
-                        Color(0xFF031018)
-                    )
-                )
-            )
+        modifier = modifier.fillMaxSize().background(
+            Brush.verticalGradient(listOf(Color(0xFF071923), Color(0xFF0A2230), Color(0xFF061720), Color(0xFF031018)))
+        )
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            TenDayHeader(location = location, onBack = onBack)
-
+        Column(Modifier.fillMaxSize()) {
+            Header(state.location, state.updatedAt, onBack)
             LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp),
+                modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    TenDaySummaryCard()
-                    Spacer(modifier = Modifier.height(4.dp))
-                    ForecastColumnHeader()
+                    Spacer(Modifier.height(12.dp))
+                    SummaryCard(state)
+                    Spacer(Modifier.height(4.dp))
                 }
-
-                items(tenDayForecast) { day ->
-                    DailyForecastRow(day)
+                if (state.daily10.isEmpty()) {
+                    item { EmptyCard(state) }
+                } else {
+                    items(state.daily10, key = { it.isoDate }) { day -> DayRow(day) }
                 }
-
-                item { Spacer(modifier = Modifier.height(12.dp)) }
+                item { Spacer(Modifier.height(12.dp)) }
             }
-
-            TenDayFooter()
+            Footer("10-DAY LIVE FORECAST • ${state.provider}")
         }
     }
 }
 
 @Composable
-private fun TenDayHeader(location: String, onBack: () -> Unit) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .statusBarsPadding(),
-        color = Color(0xEF071720),
-        tonalElevation = 0.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(58.dp)
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clickable(onClick = onBack),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.ArrowBack,
-                    contentDescription = "Back",
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
+private fun Header(location: String, subtitle: String, onBack: () -> Unit) {
+    Surface(modifier = Modifier.fillMaxWidth().statusBarsPadding(), color = Color(0xEF071720)) {
+        Row(Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(40.dp).clickable(onClick = onBack), contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.ArrowBack, "Back", tint = Color.White)
             }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Outlined.LocationOn,
-                        contentDescription = null,
-                        tint = Color(0xFF75E5F0),
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Text(
-                        text = location,
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Icon(Icons.Outlined.LocationOn, null, tint = Color(0xFF75E5F0), modifier = Modifier.size(13.dp))
+                    Text(location, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 }
-                Text(
-                    text = "10-Day Forecast",
-                    color = Color.White.copy(alpha = 0.58f),
-                    fontSize = 9.sp,
-                    letterSpacing = 0.4.sp
-                )
+                Text("10-Day Forecast • $subtitle", color = Color.White.copy(alpha = 0.55f), fontSize = 8.sp, maxLines = 1)
             }
-
-            Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Outlined.MoreVert,
-                    contentDescription = "More",
-                    tint = Color.White.copy(alpha = 0.86f),
-                    modifier = Modifier.size(21.dp)
-                )
-            }
+            Spacer(Modifier.size(40.dp))
         }
     }
 }
 
 @Composable
-private fun TenDaySummaryCard() {
+private fun SummaryCard(state: WeatherHomeUiState) {
+    val days = state.daily10
+    val min = days.minOfOrNull { it.low } ?: state.low
+    val max = days.maxOfOrNull { it.high } ?: state.high
+    val rainiest = days.maxByOrNull { it.rainChance }
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         color = Color(0xA50A202A),
-        border = BorderStroke(0.7.dp, Color.White.copy(alpha = 0.13f)),
-        tonalElevation = 0.dp
+        border = BorderStroke(0.7.dp, Color.White.copy(alpha = 0.13f))
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        Column(Modifier.padding(14.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
-                    Text(
-                        text = "Next 10 days",
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = "Warm, humid with several rain chances",
-                        color = Color.White.copy(alpha = 0.62f),
-                        fontSize = 9.sp
-                    )
+                    Text("Next 10 days", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Live outlook for ${state.selectedLocation.secondaryLabel}", color = Color.White.copy(alpha = 0.58f), fontSize = 9.sp)
                 }
-
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color(0x252DE0ED),
-                    border = BorderStroke(0.6.dp, Color(0xFF5DE6F0).copy(alpha = 0.30f))
-                ) {
-                    Text(
-                        text = "24°–34°",
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                        color = Color(0xFF9AF3F7),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                Surface(shape = RoundedCornerShape(12.dp), color = Color(0x252DE0ED)) {
+                    Text("$min°–$max°", modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp), color = Color(0xFF78E4EE), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                SummaryChip("Rainiest", "Fri • 80%", Modifier.weight(1f))
-                SummaryChip("Warmest", "Sun • 34°", Modifier.weight(1f))
-                SummaryChip("Best day", "Mon • Sunny", Modifier.weight(1f))
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                SummaryChip("Today", state.condition, Modifier.weight(1f))
+                SummaryChip("Rainiest", rainiest?.let { "${it.dayLabel} ${it.rainChance}%" } ?: "--", Modifier.weight(1f))
+                SummaryChip("Updated", state.updatedAt.removePrefix("Live • "), Modifier.weight(1f))
             }
         }
     }
 }
 
 @Composable
-private fun SummaryChip(label: String, value: String, modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        color = Color(0x65061720),
-        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f))
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(label, color = Color.White.copy(alpha = 0.48f), fontSize = 7.sp)
-            Text(
-                value,
-                color = Color.White.copy(alpha = 0.90f),
-                fontSize = 8.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1
-            )
+private fun SummaryChip(label: String, value: String, modifier: Modifier) {
+    Surface(modifier = modifier, shape = RoundedCornerShape(13.dp), color = Color(0x77071922), border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.09f))) {
+        Column(Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(label, color = Color.White.copy(alpha = 0.45f), fontSize = 7.sp)
+            Text(value, color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
         }
     }
 }
 
 @Composable
-private fun ForecastColumnHeader() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text("DAY", color = Color.White.copy(alpha = 0.38f), fontSize = 7.sp, modifier = Modifier.width(58.dp))
-        Text("WEATHER", color = Color.White.copy(alpha = 0.38f), fontSize = 7.sp, modifier = Modifier.width(92.dp))
-        Text("RANGE", color = Color.White.copy(alpha = 0.38f), fontSize = 7.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-        Text("RAIN", color = Color.White.copy(alpha = 0.38f), fontSize = 7.sp, modifier = Modifier.width(42.dp), textAlign = TextAlign.End)
-    }
-}
-
-@Composable
-private fun DailyForecastRow(day: DailyForecast) {
+private fun DayRow(day: LiveDayData) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(15.dp),
-        color = Color(0x91071A23),
-        border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.10f)),
-        tonalElevation = 0.dp
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0x98071922),
+        border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.11f))
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.width(58.dp)) {
-                Text(
-                    text = day.day,
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = day.date,
-                    color = Color.White.copy(alpha = 0.42f),
-                    fontSize = 7.sp
-                )
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.width(54.dp)) {
+                Text(day.dayLabel, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Text(day.dateLabel, color = Color.White.copy(alpha = 0.46f), fontSize = 7.sp)
             }
-
-            Row(
-                modifier = Modifier.width(92.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Icon(
-                    imageVector = dayIcon(day.condition),
-                    contentDescription = day.condition,
-                    tint = dayIconTint(day.condition),
-                    modifier = Modifier.size(20.dp)
-                )
-                Text(
-                    text = day.condition,
-                    color = Color.White.copy(alpha = 0.78f),
-                    fontSize = 7.sp,
-                    maxLines = 2
-                )
+            Icon(iconFor(day.weatherCode), null, tint = tintFor(day.weatherCode), modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text(day.condition, color = Color.White.copy(alpha = 0.82f), fontSize = 9.sp, maxLines = 1)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.WaterDrop, null, tint = Color(0xFF72DDE9), modifier = Modifier.size(10.dp))
+                    Text("${day.rainChance}%", color = Color(0xFF80DEE9), fontSize = 7.sp)
+                }
             }
-
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Text(
-                    text = "${day.low}°",
-                    color = Color.White.copy(alpha = 0.52f),
-                    fontSize = 9.sp,
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.width(25.dp)
-                )
-                TemperatureRangeBar(
-                    low = day.low,
-                    high = day.high,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = "${day.high}°",
-                    color = Color.White,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.width(25.dp)
-                )
+            Text("${day.low}°", color = Color.White.copy(alpha = 0.55f), fontSize = 11.sp)
+            Spacer(Modifier.width(8.dp))
+            Box(Modifier.width(70.dp).height(5.dp).background(Color.White.copy(alpha = 0.10f), CircleShape)) {
+                Box(Modifier.fillMaxWidth(((day.high - day.low + 3) / 18f).coerceIn(0.18f, 1f)).height(5.dp).background(Brush.horizontalGradient(listOf(Color(0xFF5DD9EA), Color(0xFFFFC85A))), CircleShape))
             }
-
-            Row(
-                modifier = Modifier.width(42.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.WaterDrop,
-                    contentDescription = null,
-                    tint = Color(0xFF6BDFF0),
-                    modifier = Modifier.size(11.dp)
-                )
-                Text(
-                    text = "${day.rainChance}%",
-                    color = Color(0xFF8CE8F4),
-                    fontSize = 8.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
+            Spacer(Modifier.width(8.dp))
+            Text("${day.high}°", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
 
 @Composable
-private fun TemperatureRangeBar(low: Int, high: Int, modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier.height(12.dp)) {
-        val minTemp = 20f
-        val maxTemp = 36f
-        val startRatio = ((low - minTemp) / (maxTemp - minTemp)).coerceIn(0f, 1f)
-        val endRatio = ((high - minTemp) / (maxTemp - minTemp)).coerceIn(0f, 1f)
-        val y = size.height / 2f
-
-        drawLine(
-            color = Color.White.copy(alpha = 0.10f),
-            start = Offset(0f, y),
-            end = Offset(size.width, y),
-            strokeWidth = 5f,
-            cap = StrokeCap.Round
-        )
-
-        drawLine(
-            brush = Brush.horizontalGradient(
-                listOf(Color(0xFF5BDCEA), Color(0xFFFFD25C), Color(0xFFFF9A58))
-            ),
-            start = Offset(size.width * startRatio, y),
-            end = Offset(size.width * endRatio, y),
-            strokeWidth = 5f,
-            cap = StrokeCap.Round
+private fun EmptyCard(state: WeatherHomeUiState) {
+    Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = Color(0x90071922)) {
+        Text(
+            if (state.isLoading) "Loading live 10-day forecast…" else state.errorMessage ?: "Forecast unavailable",
+            modifier = Modifier.padding(16.dp), color = Color.White.copy(alpha = 0.62f), fontSize = 9.sp
         )
     }
 }
 
-private fun dayIcon(condition: String): ImageVector = when {
-    condition.contains("thunder", ignoreCase = true) -> Icons.Outlined.FlashOn
-    condition.contains("rain", ignoreCase = true) -> Icons.Outlined.WaterDrop
-    condition.contains("sun", ignoreCase = true) -> Icons.Outlined.WbSunny
-    else -> Icons.Outlined.Cloud
+private fun iconFor(code: Int): ImageVector = when (code) {
+    95,96,99 -> Icons.Outlined.FlashOn
+    71,73,75,77,85,86 -> Icons.Outlined.AcUnit
+    51,53,55,56,57,61,63,65,66,67,80,81,82 -> Icons.Outlined.WaterDrop
+    2,3,45,48 -> Icons.Outlined.Cloud
+    else -> Icons.Outlined.WbSunny
 }
 
-private fun dayIconTint(condition: String): Color = when {
-    condition.contains("thunder", ignoreCase = true) -> Color(0xFFFFD65A)
-    condition.contains("rain", ignoreCase = true) -> Color(0xFF76DFEE)
-    condition.contains("sun", ignoreCase = true) -> Color(0xFFFFD553)
-    else -> Color(0xFFCEE1E7)
+private fun tintFor(code: Int): Color = when (code) {
+    95,96,99 -> Color(0xFFFFD45A)
+    71,73,75,77,85,86 -> Color(0xFFE5F5FF)
+    51,53,55,56,57,61,63,65,66,67,80,81,82 -> Color(0xFF79DDEA)
+    2,3,45,48 -> Color(0xFFD5E3E7)
+    else -> Color(0xFFFFD45A)
 }
 
 @Composable
-private fun TenDayFooter() {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding(),
-        color = Color(0xED06161E),
-        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.07f)),
-        tonalElevation = 0.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(7.dp)
-                        .background(Color(0xFF58E6AB), CircleShape)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Forecast model ready",
-                    color = Color.White.copy(alpha = 0.60f),
-                    fontSize = 8.sp
-                )
-            }
-            Text(
-                text = "Updated 9:41 AM",
-                color = Color.White.copy(alpha = 0.38f),
-                fontSize = 8.sp
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, widthDp = 390, heightDp = 844)
-@Composable
-private fun Forecast10DayPreview() {
-    RealWeather365Theme {
-        Forecast10DayScreen(location = "Chandauli", onBack = {})
+private fun Footer(text: String) {
+    Surface(modifier = Modifier.fillMaxWidth().navigationBarsPadding(), color = Color(0xEE041119)) {
+        Text(text, modifier = Modifier.fillMaxWidth().padding(10.dp), textAlign = TextAlign.Center, color = Color.White.copy(alpha = 0.42f), fontSize = 8.sp)
     }
 }

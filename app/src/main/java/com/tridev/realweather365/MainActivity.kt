@@ -52,17 +52,17 @@ class MainActivity : ComponentActivity() {
                     )
 
                     "forecast24" -> Forecast24HourScreen(
-                        location = uiState.value.location,
+                        state = uiState.value,
                         onBack = { destination = "weather" }
                     )
 
                     "forecast10" -> Forecast10DayScreen(
-                        location = uiState.value.location,
+                        state = uiState.value,
                         onBack = { destination = "weather" }
                     )
 
                     "airQuality" -> AirQualityScreen(
-                        location = uiState.value.location,
+                        state = uiState.value,
                         onBack = { destination = "weather" }
                     )
 
@@ -72,7 +72,7 @@ class MainActivity : ComponentActivity() {
                     )
 
                     "weatherDetails" -> WeatherDetailsScreen(
-                        location = uiState.value.location,
+                        state = uiState.value,
                         onBack = { destination = "weather" }
                     )
 
