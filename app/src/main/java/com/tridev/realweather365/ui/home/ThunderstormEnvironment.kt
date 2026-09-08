@@ -273,21 +273,7 @@ private fun DrawScope.drawProviderStormRain(physics: PrecipitationPhysics, progr
 }
 
 private fun DrawScope.drawProviderHail(physics: PrecipitationPhysics, progress: Float) {
-    val amount = (8 + physics.intensity * 22).toInt()
-    val destination = ((physics.windDirection + 180) % 360 + 360) % 360
-    val windX = sin(destination * PI / 180.0).toFloat()
-    repeat(amount) { index ->
-        val seedX = ((index * 73 + 5) % 157) / 157f
-        val seedY = ((index * 41 + 3) % 163) / 163f
-        val x = (seedX + progress * windX * 0.08f) * size.width
-        val y = ((seedY + progress * 1.75f) % 1.08f) * size.height
-        val radius = 1.4f + (index % 3) * 0.7f
-        drawCircle(
-            color = Color(0xFFEAF5FF).copy(alpha = 0.62f),
-            radius = radius,
-            center = Offset(x, y)
-        )
-    }
+    drawScientificHail(physics, progress)
 }
 
 private fun DrawScope.drawStormSplashes(physics: PrecipitationPhysics, progress: Float, flash: Float) {

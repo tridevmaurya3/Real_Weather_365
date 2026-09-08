@@ -76,11 +76,17 @@ private fun calculateSnowPhysics(snapshot: LiveWeatherSnapshot?): SnowPhysics {
     val intensity = (max(codeFloor, max(measured, probabilityContribution)) + coldSupport)
         .coerceIn(0.04f, 1f)
 
-    val accumulation = (
+    val surfaceRetention = when {
+        temperature <= -2 -> 1f
+        temperature <= 0 -> 0.84f
+        temperature <= 2 -> 0.34f
+        else -> 0.06f
+    }
+    val accumulation = ((
         measured * 0.58f +
             intensity * 0.34f +
             if (temperature <= 0) 0.12f else 0f
-        ).coerceIn(0f, 1f)
+        ) * surfaceRetention).coerceIn(0f, 1f)
 
     val gustLift = ((gust - 24).coerceAtLeast(0) / 62f).coerceIn(0f, 1f)
     val windLift = ((wind - 18).coerceAtLeast(0) / 48f).coerceIn(0f, 1f)

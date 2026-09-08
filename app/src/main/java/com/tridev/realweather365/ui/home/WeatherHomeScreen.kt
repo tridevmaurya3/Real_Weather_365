@@ -83,7 +83,7 @@ fun WeatherHomeScreen(
                     )
                     WeatherScene.RAIN -> RainEnvironment(animationLevel = state.animationLevel)
                     WeatherScene.THUNDERSTORM -> ThunderstormEnvironment(animationLevel = state.animationLevel)
-                    WeatherScene.SNOW -> SnowEnvironment()
+                    WeatherScene.SNOW -> SnowEnvironment(animationLevel = state.animationLevel)
                     WeatherScene.NIGHT -> AstronomicalNightEnvironment(
                         moon = moon,
                         solar = solar,
