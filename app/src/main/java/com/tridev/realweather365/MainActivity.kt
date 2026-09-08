@@ -78,7 +78,10 @@ class MainActivity : ComponentActivity() {
 
                     "globalLocation" -> GlobalLocationScreen(
                         selectedLocation = uiState.value.selectedLocation,
-                        onLocationSelected = viewModel::selectLocation,
+                        onLocationSelected = { location ->
+                            viewModel.selectLocation(location)
+                            destination = "weather"
+                        },
                         onBack = { destination = "weather" }
                     )
 
