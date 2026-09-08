@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AcUnit
 import androidx.compose.material.icons.outlined.Air
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Eco
@@ -65,6 +66,7 @@ fun WeatherHomeScreen(
                 WeatherScene.SUNRISE -> SunriseEnvironment()
                 WeatherScene.RAIN -> RainEnvironment()
                 WeatherScene.THUNDERSTORM -> ThunderstormEnvironment()
+                WeatherScene.SNOW -> SnowEnvironment()
             }
         }
 
@@ -126,6 +128,14 @@ private fun sceneScrim(scene: WeatherScene): Brush = when (scene) {
         0.48f to Color.Transparent,
         0.69f to Color(0x62030A10),
         1f to Color(0xF0030E15)
+    )
+
+    WeatherScene.SNOW -> Brush.verticalGradient(
+        0f to Color(0x220A2235),
+        0.22f to Color(0x0EFFFFFF),
+        0.50f to Color.Transparent,
+        0.72f to Color(0x42081926),
+        1f to Color(0xE706151E)
     )
 }
 
@@ -252,6 +262,7 @@ private fun HourlyForecastPanel(hourly: List<HourForecast>) {
 }
 
 private fun weatherIconFor(condition: String): ImageVector = when {
+    condition.contains("snow", ignoreCase = true) -> Icons.Outlined.AcUnit
     condition.contains("thunder", ignoreCase = true) || condition.contains("storm", ignoreCase = true) -> Icons.Outlined.FlashOn
     condition.contains("rain", ignoreCase = true) -> Icons.Outlined.WaterDrop
     condition.contains("cloud", ignoreCase = true) -> Icons.Outlined.Cloud
@@ -259,6 +270,7 @@ private fun weatherIconFor(condition: String): ImageVector = when {
 }
 
 private fun weatherIconTint(condition: String): Color = when {
+    condition.contains("snow", ignoreCase = true) -> Color(0xFFE7F6FF)
     condition.contains("thunder", ignoreCase = true) || condition.contains("storm", ignoreCase = true) -> Color(0xFFFFD65A)
     condition.contains("rain", ignoreCase = true) -> Color(0xFF82DDF2)
     condition.contains("cloud", ignoreCase = true) -> Color(0xFFCEE2E7)
@@ -396,7 +408,7 @@ private fun NavItem(
 
 @Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
-private fun ThunderstormHomePreview() {
+private fun SnowHomePreview() {
     RealWeather365Theme {
         WeatherHomeScreen(WeatherHomeUiState())
     }
