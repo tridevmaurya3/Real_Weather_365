@@ -59,6 +59,7 @@ fun WeatherHomeScreen(
     modifier: Modifier = Modifier
 ) {
     val solar = rememberSolarVisualState(state.selectedLocation)
+    val moon = rememberMoonVisualState(state.selectedLocation)
     val visualScene = solarAdjustedScene(state.scene, solar)
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -83,7 +84,11 @@ fun WeatherHomeScreen(
                     WeatherScene.RAIN -> RainEnvironment()
                     WeatherScene.THUNDERSTORM -> ThunderstormEnvironment()
                     WeatherScene.SNOW -> SnowEnvironment()
-                    WeatherScene.NIGHT -> NightEnvironment()
+                    WeatherScene.NIGHT -> AstronomicalNightEnvironment(
+                        moon = moon,
+                        solar = solar,
+                        cloudCover = state.cloudCover
+                    )
                 }
             }
         }
