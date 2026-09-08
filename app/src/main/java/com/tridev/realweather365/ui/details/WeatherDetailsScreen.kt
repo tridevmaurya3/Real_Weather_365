@@ -45,8 +45,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tridev.realweather365.data.weather.WmoWeather
 import com.tridev.realweather365.ui.home.WeatherHomeUiState
-import java.time.LocalDate
+import com.tridev.realweather365.ui.home.rememberMoonVisualState
 import java.time.LocalDateTime
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -187,18 +188,48 @@ private fun TimeBlock(label: String, value: String) {
 @Composable
 private fun MoonCard(state: WeatherHomeUiState) {
     val hindi = state.languageCode == "hi"
-    val moon = moonPhase(state.observedAt, hindi)
+    val moon = rememberMoonVisualState(state.selectedLocation)
+    val phaseName = if (hindi) moon.phase.hindi else moon.phase.english
+    val rise = formatMoonEvent(moon.moonrise, moon.alwaysAboveHorizon, hindi)
+    val set = formatMoonEvent(moon.moonset, moon.alwaysAboveHorizon, hindi)
+    val horizonStatus = when {
+        moon.aboveHorizon -> if (hindi) "क्षितिज के ऊपर" else "Above horizon"
+        else -> if (hindi) "क्षितिज के नीचे" else "Below horizon"
+    }
+
     Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), color = Color(0x98071922), border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.11f))) {
-        Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(44.dp).background(Color(0x262A9BD8), CircleShape), contentAlignment = Alignment.Center) {
-                Icon(Icons.Outlined.NightsStay, null, tint = Color(0xFFDCEEFF), modifier = Modifier.size(23.dp))
+        Column(Modifier.padding(13.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(46.dp).background(Color(0x262A9BD8), CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Outlined.NightsStay, null, tint = Color(0xFFDCEEFF), modifier = Modifier.size(24.dp))
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(if (hindi) "चंद्र खगोल विज्ञान" else "Moon Astronomy", color = Color.White.copy(alpha = 0.50f), fontSize = 8.sp)
+                    Text(phaseName, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        if (hindi) "रोशनी ${moon.illuminationPercent}% • $horizonStatus" else "${moon.illuminationPercent}% illuminated • $horizonStatus",
+                        color = Color(0xFF9EDFF0), fontSize = 8.sp
+                    )
+                }
             }
-            Spacer(Modifier.width(10.dp))
-            Column {
-                Text(if (hindi) "चंद्र चरण" else "Moon Phase", color = Color.White.copy(alpha = 0.50f), fontSize = 8.sp)
-                Text(moon, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                Text(if (hindi) "स्थानीय पूर्वानुमान तिथि से खगोलीय अनुमान" else "Astronomical estimate from local forecast date", color = Color.White.copy(alpha = 0.42f), fontSize = 7.sp)
+            Spacer(Modifier.height(11.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+                TimeBlock(if (hindi) "चंद्रोदय" else "Moonrise", rise)
+                TimeBlock(if (hindi) "चंद्रास्त" else "Moonset", set)
+                TimeBlock(if (hindi) "ऊंचाई" else "Altitude", String.format(Locale.ENGLISH, "%.0f°", moon.altitudeDegrees))
             }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                if (hindi) {
+                    "दिशा ${String.format(Locale.ENGLISH, "%.0f°", moon.azimuthDegrees)} • खगोलीय स्थिति चयनित स्थान, तारीख और समय क्षेत्र से गणना की गई"
+                } else {
+                    "Azimuth ${String.format(Locale.ENGLISH, "%.0f°", moon.azimuthDegrees)} • position calculated from selected location, date and time zone"
+                },
+                color = Color.White.copy(alpha = 0.42f),
+                fontSize = 7.sp,
+                lineHeight = 10.sp
+            )
         }
     }
 }
@@ -220,32 +251,13 @@ private fun formatTime(value: String): String {
     }.getOrElse { value.substringAfter('T', value) }
 }
 
-private fun moonPhase(observedAt: String, hindi: Boolean): String {
-    val date = runCatching { LocalDateTime.parse(observedAt).toLocalDate() }.getOrElse { LocalDate.now() }
-    val epoch = LocalDate.of(2000, 1, 6)
-    val days = java.time.temporal.ChronoUnit.DAYS.between(epoch, date).toDouble()
-    val cycle = ((days % 29.53058867) + 29.53058867) % 29.53058867
-    val fraction = cycle / 29.53058867
-    val english = when {
-        fraction < 0.0625 || fraction >= 0.9375 -> "New Moon"
-        fraction < 0.1875 -> "Waxing Crescent"
-        fraction < 0.3125 -> "First Quarter"
-        fraction < 0.4375 -> "Waxing Gibbous"
-        fraction < 0.5625 -> "Full Moon"
-        fraction < 0.6875 -> "Waning Gibbous"
-        fraction < 0.8125 -> "Last Quarter"
-        else -> "Waning Crescent"
+private fun formatMoonEvent(value: ZonedDateTime?, alwaysAbove: Boolean, hindi: Boolean): String {
+    if (value != null) {
+        return value.format(DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH))
     }
-    if (!hindi) return english
-    return when (english) {
-        "New Moon" -> "अमावस्या"
-        "Waxing Crescent" -> "बढ़ता अर्धचंद्र"
-        "First Quarter" -> "प्रथम चतुर्थांश"
-        "Waxing Gibbous" -> "बढ़ता गिबस"
-        "Full Moon" -> "पूर्णिमा"
-        "Waning Gibbous" -> "घटता गिबस"
-        "Last Quarter" -> "अंतिम चतुर्थांश"
-        else -> "घटता अर्धचंद्र"
+    return when {
+        alwaysAbove -> if (hindi) "पूरे दिन ऊपर" else "All day"
+        else -> "--"
     }
 }
 
