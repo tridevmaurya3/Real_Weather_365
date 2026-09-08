@@ -26,6 +26,7 @@ import com.tridev.realweather365.data.preferences.WeatherPreferencesStore
 import com.tridev.realweather365.data.preferences.applyDisplayPreferences
 import com.tridev.realweather365.notification.WeatherNotificationScheduler
 import com.tridev.realweather365.ui.airquality.AirQualityScreen
+import com.tridev.realweather365.ui.alerts.OfficialWeatherAlertsScreen
 import com.tridev.realweather365.ui.alerts.SevereWeatherAlertScreen
 import com.tridev.realweather365.ui.details.WeatherDetailsScreen
 import com.tridev.realweather365.ui.forecast.Forecast10DayScreen
@@ -110,6 +111,7 @@ class MainActivity : ComponentActivity() {
                 BackHandler(enabled = destination != "weather") {
                     destination = when (destination) {
                         "widgets", "animatedBackgrounds", "smartNotifications", "settings" -> "personalization"
+                        "forecastRisk" -> "severeAlert"
                         else -> "weather"
                     }
                 }
@@ -135,9 +137,15 @@ class MainActivity : ComponentActivity() {
                         onBack = { destination = "weather" }
                     )
 
-                    "severeAlert" -> SevereWeatherAlertScreen(
+                    "severeAlert" -> OfficialWeatherAlertsScreen(
                         state = displayedHomeState,
-                        onBack = { destination = "weather" }
+                        onBack = { destination = "weather" },
+                        onOpenForecastRisk = { destination = "forecastRisk" }
+                    )
+
+                    "forecastRisk" -> SevereWeatherAlertScreen(
+                        state = displayedHomeState,
+                        onBack = { destination = "severeAlert" }
                     )
 
                     "weatherDetails" -> WeatherDetailsScreen(
