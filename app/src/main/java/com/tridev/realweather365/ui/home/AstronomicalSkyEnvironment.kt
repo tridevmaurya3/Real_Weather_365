@@ -22,8 +22,13 @@ import kotlin.math.sin
 fun AstronomicalSkyEnvironment(
     solar: SolarVisualState,
     cloudCover: Int,
+    humidity: Int = 50,
+    visibilityKm: Double? = null,
+    directRadiation: Double = 0.0,
+    diffuseRadiation: Double = 0.0,
     modifier: Modifier = Modifier
 ) {
+    val optics = AtmosphericOpticsEngine.calculate(solar.elevationDegrees, humidity, visibilityKm, cloudCover, directRadiation, diffuseRadiation)
     val transition = rememberInfiniteTransition(label = "astronomical-sky")
     val waterShift = transition.animateFloat(
         initialValue = 0f,
@@ -36,9 +41,9 @@ fun AstronomicalSkyEnvironment(
     )
 
     Canvas(modifier = modifier.fillMaxSize()) {
-        drawAstronomicalSky(solar)
+        drawAstronomicalSky(solar, optics)
         drawTwilightStars(solar)
-        drawAstronomicalSun(solar, cloudCover)
+        drawAstronomicalSun(solar, cloudCover, optics)
         // Clouds are rendered once by RealCloudSystem so their live coverage,
         // wind, depth and lighting stay physically consistent across scenes.
         drawSolarMountainWorld(solar)
@@ -80,14 +85,14 @@ fun SolarLightingOverlay(
     }
 }
 
-private fun DrawScope.drawAstronomicalSky(solar: SolarVisualState) {
+private fun DrawScope.drawAstronomicalSky(solar: SolarVisualState, optics: AtmosphericOptics) {
     val t = solar.daylight
     val topNight = Color(0xFF06132A)
-    val topDay = Color(0xFF1185D1)
+    val topDay = mix(Color(0xFF237FB8), Color(0xFF087FD5), optics.rayleigh)
     val midNight = Color(0xFF173854)
     val midDay = Color(0xFF63BAE5)
     val horizonNight = Color(0xFF334B62)
-    val horizonDay = Color(0xFFD5EEF5)
+    val horizonDay = mix(Color(0xFFD5EEF5), Color(0xFFE7D0B2), optics.mie * optics.horizonExtinction * 0.38f)
 
     val warmAmount = solar.warmth
     val horizonWarm = if (solar.isRising) Color(0xFFFFB067) else Color(0xFFFF875E)
@@ -96,7 +101,7 @@ private fun DrawScope.drawAstronomicalSky(solar: SolarVisualState) {
         brush = Brush.verticalGradient(
             0f to mix(topNight, topDay, t),
             0.34f to mix(midNight, midDay, t),
-            0.58f to mix(mix(horizonNight, horizonDay, t), horizonWarm, warmAmount * 0.72f),
+            0.58f to mix(mix(horizonNight, horizonDay, t), horizonWarm, maxOf(warmAmount * 0.72f, optics.sunsetReddening * 0.52f)),
             0.73f to mix(Color(0xFF2A4853), Color(0xFFB8DADE), t * 0.72f),
             1f to Color(0xFF17333D)
         )
@@ -131,14 +136,14 @@ private fun DrawScope.drawTwilightStars(solar: SolarVisualState) {
     }
 }
 
-private fun DrawScope.drawAstronomicalSun(solar: SolarVisualState, cloudCover: Int) {
+private fun DrawScope.drawAstronomicalSun(solar: SolarVisualState, cloudCover: Int, optics: AtmosphericOptics) {
     if (!solar.sunVisible) return
-    val attenuation = (1f - cloudCover.coerceIn(0, 100) / 125f).coerceIn(0.20f, 1f)
+    val attenuation = ((1f - cloudCover.coerceIn(0, 100) / 125f) * optics.directExposure).coerceIn(0.08f, 1f)
     val center = Offset(size.width * solar.visualX, size.height * solar.visualY)
     val lowSun = (1f - (solar.elevationDegrees / 22.0).coerceIn(0.0, 1.0)).toFloat()
     val glowRadius = size.width * (0.18f + 0.12f * lowSun)
     val coreRadius = size.width * (0.028f + 0.008f * lowSun)
-    val warm = if (solar.isRising) Color(0xFFFFD37C) else Color(0xFFFFAA62)
+    val warm = mix(if (solar.isRising) Color(0xFFFFD37C) else Color(0xFFFFAA62), Color(0xFFFF704A), optics.sunsetReddening * 0.52f)
 
     drawCircle(
         brush = Brush.radialGradient(
