@@ -17,6 +17,27 @@ enum class AnimationQuality(val label: String) {
     OPTIMIZED("Optimized")
 }
 
+enum class UnitSystem(
+    val label: String,
+    val temperatureUnit: String,
+    val windUnit: String,
+    val distanceUnit: String
+) {
+    METRIC("Metric", "°C", "km/h", "km"),
+    IMPERIAL("Imperial", "°F", "mph", "mi")
+}
+
+enum class AppLanguage(val label: String, val code: String) {
+    ENGLISH("English", "en"),
+    HINDI("हिन्दी", "hi")
+}
+
+enum class RefreshRate(val label: String, val minutes: Long) {
+    MIN_15("Every 15 minutes", 15),
+    MIN_30("Every 30 minutes", 30),
+    MIN_60("Every 60 minutes", 60)
+}
+
 data class WeatherPreferences(
     val automaticBackground: Boolean = true,
     val manualBackground: BackgroundWorld = BackgroundWorld.CLEAR_SKY,
@@ -28,13 +49,34 @@ data class WeatherPreferences(
     val severeWeatherAlert: Boolean = true,
     val animationQuality: AnimationQuality = AnimationQuality.HIGH,
     val batterySaver: Boolean = false,
-    val unitsLabel: String = "Celsius (°C)",
-    val languageLabel: String = "English",
+    val unitSystem: UnitSystem = UnitSystem.METRIC,
+    val appLanguage: AppLanguage = AppLanguage.ENGLISH,
+    val refreshRate: RefreshRate = RefreshRate.MIN_30,
     val dataSourceLabel: String = "Global Forecast (High Accuracy)",
-    val refreshRateLabel: String = "Every 30 minutes",
     val themeLabel: String = "Dark (Glassmorphism)",
     val accessibilityEnabled: Boolean = false
-)
+) {
+    val unitsLabel: String
+        get() = "${unitSystem.temperatureUnit} • ${unitSystem.windUnit}"
+
+    val languageLabel: String
+        get() = appLanguage.label
+
+    val refreshRateLabel: String
+        get() = refreshRate.label
+
+    fun effectiveRefreshMinutes(): Long = if (batterySaver) {
+        maxOf(60L, refreshRate.minutes)
+    } else {
+        refreshRate.minutes
+    }
+
+    fun effectiveAnimationQuality(): AnimationQuality = if (batterySaver) {
+        AnimationQuality.OPTIMIZED
+    } else {
+        animationQuality
+    }
+}
 
 class WeatherPreferencesStore(context: Context) {
     private val prefs = context.getSharedPreferences("real_weather_365_preferences", Context.MODE_PRIVATE)
@@ -56,6 +98,18 @@ class WeatherPreferencesStore(context: Context) {
             AnimationQuality.HIGH
         ),
         batterySaver = prefs.getBoolean("battery_saver", false),
+        unitSystem = enumValueOrDefault(
+            prefs.getString("unit_system", null),
+            UnitSystem.METRIC
+        ),
+        appLanguage = enumValueOrDefault(
+            prefs.getString("app_language", null),
+            AppLanguage.ENGLISH
+        ),
+        refreshRate = enumValueOrDefault(
+            prefs.getString("refresh_rate", null),
+            RefreshRate.MIN_30
+        ),
         accessibilityEnabled = prefs.getBoolean("accessibility", false)
     )
 
@@ -71,6 +125,9 @@ class WeatherPreferencesStore(context: Context) {
             .putBoolean("severe_weather_alert", value.severeWeatherAlert)
             .putString("animation_quality", value.animationQuality.name)
             .putBoolean("battery_saver", value.batterySaver)
+            .putString("unit_system", value.unitSystem.name)
+            .putString("app_language", value.appLanguage.name)
+            .putString("refresh_rate", value.refreshRate.name)
             .putBoolean("accessibility", value.accessibilityEnabled)
             .apply()
     }

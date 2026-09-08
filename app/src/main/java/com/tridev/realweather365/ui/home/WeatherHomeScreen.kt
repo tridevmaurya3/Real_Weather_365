@@ -59,18 +59,26 @@ fun WeatherHomeScreen(
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxSize()) {
-        Crossfade(
-            targetState = state.scene,
-            animationSpec = tween(durationMillis = 900),
-            label = "weather-world-transition"
-        ) { scene ->
-            when (scene) {
-                WeatherScene.SUNNY -> SunnyEnvironment()
-                WeatherScene.SUNRISE -> SunriseEnvironment()
-                WeatherScene.RAIN -> RainEnvironment()
-                WeatherScene.THUNDERSTORM -> ThunderstormEnvironment()
-                WeatherScene.SNOW -> SnowEnvironment()
-                WeatherScene.NIGHT -> NightEnvironment()
+        if (state.animationLevel <= 0) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(staticSceneBrush(state.scene))
+            )
+        } else {
+            Crossfade(
+                targetState = state.scene,
+                animationSpec = tween(durationMillis = if (state.animationLevel == 1) 450 else 900),
+                label = "weather-world-transition"
+            ) { scene ->
+                when (scene) {
+                    WeatherScene.SUNNY -> SunnyEnvironment()
+                    WeatherScene.SUNRISE -> SunriseEnvironment()
+                    WeatherScene.RAIN -> RainEnvironment()
+                    WeatherScene.THUNDERSTORM -> ThunderstormEnvironment()
+                    WeatherScene.SNOW -> SnowEnvironment()
+                    WeatherScene.NIGHT -> NightEnvironment()
+                }
             }
         }
 
@@ -104,6 +112,7 @@ fun WeatherHomeScreen(
             )
             Spacer(modifier = Modifier.height(7.dp))
             BottomNavigation(
+                languageCode = state.languageCode,
                 onOpenRadar = navigation.openRadar,
                 onOpenForecast = navigation.openForecast10,
                 onOpenAlerts = navigation.openAlerts,
@@ -112,6 +121,15 @@ fun WeatherHomeScreen(
             Spacer(modifier = Modifier.height(3.dp))
         }
     }
+}
+
+private fun staticSceneBrush(scene: WeatherScene): Brush = when (scene) {
+    WeatherScene.SUNNY -> Brush.verticalGradient(listOf(Color(0xFF2A93CF), Color(0xFF7CCFE7), Color(0xFF153542)))
+    WeatherScene.SUNRISE -> Brush.verticalGradient(listOf(Color(0xFF4B3155), Color(0xFFF09B58), Color(0xFF18333B)))
+    WeatherScene.RAIN -> Brush.verticalGradient(listOf(Color(0xFF314C5C), Color(0xFF17333F), Color(0xFF07151C)))
+    WeatherScene.THUNDERSTORM -> Brush.verticalGradient(listOf(Color(0xFF1C2436), Color(0xFF28364A), Color(0xFF060D15)))
+    WeatherScene.SNOW -> Brush.verticalGradient(listOf(Color(0xFF8FB8CC), Color(0xFFD5E6EC), Color(0xFF1B3543)))
+    WeatherScene.NIGHT -> Brush.verticalGradient(listOf(Color(0xFF06132E), Color(0xFF0D3150), Color(0xFF02070D)))
 }
 
 private fun sceneScrim(scene: WeatherScene): Brush = when (scene) {
@@ -204,6 +222,7 @@ private fun LocationHeader(
 
 @Composable
 private fun CurrentConditions(state: WeatherHomeUiState, onOpenTenDay: () -> Unit) {
+    val hindi = state.languageCode == "hi"
     Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenTenDay)) {
         Text(
             text = "${state.temperature}°",
@@ -219,8 +238,16 @@ private fun CurrentConditions(state: WeatherHomeUiState, onOpenTenDay: () -> Uni
             fontWeight = FontWeight.Medium
         )
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Feels like ${state.feelsLike}°", color = Color.White.copy(alpha = 0.88f), fontSize = 10.sp)
-            Text("H: ${state.high}°   L: ${state.low}°", color = Color.White.copy(alpha = 0.88f), fontSize = 10.sp)
+            Text(
+                if (hindi) "महसूस ${state.feelsLike}°" else "Feels like ${state.feelsLike}°",
+                color = Color.White.copy(alpha = 0.88f),
+                fontSize = 10.sp
+            )
+            Text(
+                if (hindi) "अधिक: ${state.high}°   कम: ${state.low}°" else "H: ${state.high}°   L: ${state.low}°",
+                color = Color.White.copy(alpha = 0.88f),
+                fontSize = 10.sp
+            )
         }
     }
 }
@@ -249,20 +276,20 @@ private fun HourlyForecastPanel(hourly: List<HourForecast>, onOpenForecast: () -
 }
 
 private fun weatherIconFor(condition: String): ImageVector = when {
-    condition.contains("night", true) || condition.contains("moon", true) -> Icons.Outlined.NightsStay
-    condition.contains("snow", true) -> Icons.Outlined.AcUnit
-    condition.contains("thunder", true) || condition.contains("storm", true) -> Icons.Outlined.FlashOn
-    condition.contains("rain", true) -> Icons.Outlined.WaterDrop
-    condition.contains("cloud", true) -> Icons.Outlined.Cloud
+    condition.contains("night", true) || condition.contains("moon", true) || condition.contains("रात") -> Icons.Outlined.NightsStay
+    condition.contains("snow", true) || condition.contains("बर्फ") -> Icons.Outlined.AcUnit
+    condition.contains("thunder", true) || condition.contains("storm", true) || condition.contains("गरज") || condition.contains("तूफान") -> Icons.Outlined.FlashOn
+    condition.contains("rain", true) || condition.contains("drizzle", true) || condition.contains("बारिश") || condition.contains("बूंद") -> Icons.Outlined.WaterDrop
+    condition.contains("cloud", true) || condition.contains("overcast", true) || condition.contains("बादल") -> Icons.Outlined.Cloud
     else -> Icons.Outlined.WbSunny
 }
 
 private fun weatherIconTint(condition: String): Color = when {
-    condition.contains("night", true) || condition.contains("moon", true) -> Color(0xFFD8EFFF)
-    condition.contains("snow", true) -> Color(0xFFE7F6FF)
-    condition.contains("thunder", true) || condition.contains("storm", true) -> Color(0xFFFFD65A)
-    condition.contains("rain", true) -> Color(0xFF82DDF2)
-    condition.contains("cloud", true) -> Color(0xFFCEE2E7)
+    condition.contains("night", true) || condition.contains("moon", true) || condition.contains("रात") -> Color(0xFFD8EFFF)
+    condition.contains("snow", true) || condition.contains("बर्फ") -> Color(0xFFE7F6FF)
+    condition.contains("thunder", true) || condition.contains("storm", true) || condition.contains("गरज") -> Color(0xFFFFD65A)
+    condition.contains("rain", true) || condition.contains("बारिश") -> Color(0xFF82DDF2)
+    condition.contains("cloud", true) || condition.contains("बादल") -> Color(0xFFCEE2E7)
     condition.equals("Sunrise", true) -> Color(0xFFFFC66B)
     else -> Color(0xFFFFD44D)
 }
@@ -308,8 +335,8 @@ private fun MetricCard(metric: WeatherMetric, modifier: Modifier = Modifier, onC
 
 private fun metricIcon(label: String): ImageVector = when (label.lowercase()) {
     "aqi" -> Icons.Outlined.Eco
-    "wind" -> Icons.Outlined.Air
-    "humidity" -> Icons.Outlined.WaterDrop
+    "wind", "हवा" -> Icons.Outlined.Air
+    "humidity", "नमी" -> Icons.Outlined.WaterDrop
     else -> Icons.Outlined.Speed
 }
 
@@ -332,11 +359,13 @@ private fun GlassPanel(
 
 @Composable
 private fun BottomNavigation(
+    languageCode: String,
     onOpenRadar: () -> Unit,
     onOpenForecast: () -> Unit,
     onOpenAlerts: () -> Unit,
     onOpenMore: () -> Unit
 ) {
+    val hindi = languageCode == "hi"
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
@@ -348,11 +377,11 @@ private fun BottomNavigation(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceAround
         ) {
-            NavItem(Icons.Outlined.WbSunny, "Weather", true, onClick = {})
-            NavItem(Icons.Outlined.Map, "Map", false, onClick = onOpenRadar)
-            NavItem(Icons.Outlined.Cloud, "Forecast", false, onClick = onOpenForecast)
-            NavItem(Icons.Outlined.NotificationsNone, "Alerts", false, onClick = onOpenAlerts)
-            NavItem(Icons.Outlined.GridView, "More", false, onClick = onOpenMore)
+            NavItem(Icons.Outlined.WbSunny, if (hindi) "मौसम" else "Weather", true, onClick = {})
+            NavItem(Icons.Outlined.Map, if (hindi) "नक्शा" else "Map", false, onClick = onOpenRadar)
+            NavItem(Icons.Outlined.Cloud, if (hindi) "पूर्वानुमान" else "Forecast", false, onClick = onOpenForecast)
+            NavItem(Icons.Outlined.NotificationsNone, if (hindi) "अलर्ट" else "Alerts", false, onClick = onOpenAlerts)
+            NavItem(Icons.Outlined.GridView, if (hindi) "और" else "More", false, onClick = onOpenMore)
         }
     }
 }

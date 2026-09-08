@@ -50,13 +50,14 @@ fun Forecast10DayScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val hindi = state.languageCode == "hi"
     Box(
         modifier = modifier.fillMaxSize().background(
             Brush.verticalGradient(listOf(Color(0xFF071923), Color(0xFF0A2230), Color(0xFF061720), Color(0xFF031018)))
         )
     ) {
         Column(Modifier.fillMaxSize()) {
-            Header(state.location, state.updatedAt, onBack)
+            Header(state.location, state.updatedAt, hindi, onBack)
             LazyColumn(
                 modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -73,13 +74,13 @@ fun Forecast10DayScreen(
                 }
                 item { Spacer(Modifier.height(12.dp)) }
             }
-            Footer("10-DAY LIVE FORECAST • ${state.provider}")
+            Footer(if (hindi) "10-दिन का लाइव पूर्वानुमान • ${state.provider}" else "10-DAY LIVE FORECAST • ${state.provider}")
         }
     }
 }
 
 @Composable
-private fun Header(location: String, subtitle: String, onBack: () -> Unit) {
+private fun Header(location: String, subtitle: String, hindi: Boolean, onBack: () -> Unit) {
     Surface(modifier = Modifier.fillMaxWidth().statusBarsPadding(), color = Color(0xEF071720)) {
         Row(Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(40.dp).clickable(onClick = onBack), contentAlignment = Alignment.Center) {
@@ -90,7 +91,7 @@ private fun Header(location: String, subtitle: String, onBack: () -> Unit) {
                     Icon(Icons.Outlined.LocationOn, null, tint = Color(0xFF75E5F0), modifier = Modifier.size(13.dp))
                     Text(location, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 }
-                Text("10-Day Forecast • $subtitle", color = Color.White.copy(alpha = 0.55f), fontSize = 8.sp, maxLines = 1)
+                Text(if (hindi) "10-दिन का पूर्वानुमान • $subtitle" else "10-Day Forecast • $subtitle", color = Color.White.copy(alpha = 0.55f), fontSize = 8.sp, maxLines = 1)
             }
             Spacer(Modifier.size(40.dp))
         }
@@ -99,6 +100,7 @@ private fun Header(location: String, subtitle: String, onBack: () -> Unit) {
 
 @Composable
 private fun SummaryCard(state: WeatherHomeUiState) {
+    val hindi = state.languageCode == "hi"
     val days = state.daily10
     val min = days.minOfOrNull { it.low } ?: state.low
     val max = days.maxOfOrNull { it.high } ?: state.high
@@ -112,8 +114,8 @@ private fun SummaryCard(state: WeatherHomeUiState) {
         Column(Modifier.padding(14.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column {
-                    Text("Next 10 days", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Live outlook for ${state.selectedLocation.secondaryLabel}", color = Color.White.copy(alpha = 0.58f), fontSize = 9.sp)
+                    Text(if (hindi) "अगले 10 दिन" else "Next 10 days", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text(if (hindi) "${state.selectedLocation.secondaryLabel} का लाइव आउटलुक" else "Live outlook for ${state.selectedLocation.secondaryLabel}", color = Color.White.copy(alpha = 0.58f), fontSize = 9.sp)
                 }
                 Surface(shape = RoundedCornerShape(12.dp), color = Color(0x252DE0ED)) {
                     Text("$min°–$max°", modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp), color = Color(0xFF78E4EE), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
@@ -121,9 +123,9 @@ private fun SummaryCard(state: WeatherHomeUiState) {
             }
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                SummaryChip("Today", state.condition, Modifier.weight(1f))
-                SummaryChip("Rainiest", rainiest?.let { "${it.dayLabel} ${it.rainChance}%" } ?: "--", Modifier.weight(1f))
-                SummaryChip("Updated", state.updatedAt.removePrefix("Live • "), Modifier.weight(1f))
+                SummaryChip(if (hindi) "आज" else "Today", state.condition, Modifier.weight(1f))
+                SummaryChip(if (hindi) "सबसे अधिक बारिश" else "Rainiest", rainiest?.let { "${it.dayLabel} ${it.rainChance}%" } ?: "--", Modifier.weight(1f))
+                SummaryChip(if (hindi) "अपडेट" else "Updated", state.updatedAt.removePrefix("Live • ").removePrefix("लाइव • "), Modifier.weight(1f))
             }
         }
     }
@@ -174,9 +176,12 @@ private fun DayRow(day: LiveDayData) {
 
 @Composable
 private fun EmptyCard(state: WeatherHomeUiState) {
+    val hindi = state.languageCode == "hi"
     Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = Color(0x90071922)) {
         Text(
-            if (state.isLoading) "Loading live 10-day forecast…" else state.errorMessage ?: "Forecast unavailable",
+            if (state.isLoading) {
+                if (hindi) "लाइव 10-दिन का पूर्वानुमान लोड हो रहा है…" else "Loading live 10-day forecast…"
+            } else state.errorMessage ?: if (hindi) "पूर्वानुमान उपलब्ध नहीं" else "Forecast unavailable",
             modifier = Modifier.padding(16.dp), color = Color.White.copy(alpha = 0.62f), fontSize = 9.sp
         )
     }

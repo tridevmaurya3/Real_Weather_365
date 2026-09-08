@@ -23,6 +23,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tridev.realweather365.data.preferences.BackgroundWorld
 import com.tridev.realweather365.data.preferences.WeatherPreferences
 import com.tridev.realweather365.data.preferences.WeatherPreferencesStore
+import com.tridev.realweather365.data.preferences.applyDisplayPreferences
 import com.tridev.realweather365.notification.WeatherNotificationScheduler
 import com.tridev.realweather365.ui.airquality.AirQualityScreen
 import com.tridev.realweather365.ui.alerts.SevereWeatherAlertScreen
@@ -36,12 +37,13 @@ import com.tridev.realweather365.ui.home.WeatherScene
 import com.tridev.realweather365.ui.location.GlobalLocationScreen
 import com.tridev.realweather365.ui.personalization.AnimatedBackgroundsScreen
 import com.tridev.realweather365.ui.personalization.PersonalizationHubScreen
+import com.tridev.realweather365.ui.personalization.RealSettingsScreen
 import com.tridev.realweather365.ui.personalization.RealSmartNotificationsScreen
 import com.tridev.realweather365.ui.personalization.RealWidgetsScreen
-import com.tridev.realweather365.ui.personalization.SettingsScreen
 import com.tridev.realweather365.ui.radar.RadarScreen
 import com.tridev.realweather365.ui.theme.RealWeather365Theme
 import com.tridev.realweather365.widget.WeatherWidgetUpdater
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,10 +74,11 @@ class MainActivity : ComponentActivity() {
                     notificationPermissionGranted = granted || hasNotificationRuntimePermission()
                 }
 
+                val preferenceAdjustedState = uiState.value.applyDisplayPreferences(preferences)
                 val displayedHomeState = if (preferences.automaticBackground) {
-                    uiState.value
+                    preferenceAdjustedState
                 } else {
-                    uiState.value.copy(scene = preferences.manualBackground.toWeatherScene())
+                    preferenceAdjustedState.copy(scene = preferences.manualBackground.toWeatherScene())
                 }
 
                 val updatePreferences: (WeatherPreferences) -> Unit = { updated ->
@@ -87,9 +90,20 @@ class MainActivity : ComponentActivity() {
                     WeatherNotificationScheduler.apply(this@MainActivity, preferences)
                 }
 
-                LaunchedEffect(uiState.value) {
-                    if (!uiState.value.isLoading) {
-                        WeatherWidgetUpdater.syncFromApp(this@MainActivity, uiState.value)
+                LaunchedEffect(
+                    preferences.refreshRate,
+                    preferences.batterySaver,
+                    uiState.value.selectedLocation.id
+                ) {
+                    while (true) {
+                        delay(preferences.effectiveRefreshMinutes() * 60_000L)
+                        viewModel.refreshWeather()
+                    }
+                }
+
+                LaunchedEffect(displayedHomeState) {
+                    if (!displayedHomeState.isLoading) {
+                        WeatherWidgetUpdater.syncFromApp(this@MainActivity, displayedHomeState)
                     }
                 }
 
@@ -107,17 +121,17 @@ class MainActivity : ComponentActivity() {
                     )
 
                     "forecast24" -> Forecast24HourScreen(
-                        state = uiState.value,
+                        state = displayedHomeState,
                         onBack = { destination = "weather" }
                     )
 
                     "forecast10" -> Forecast10DayScreen(
-                        state = uiState.value,
+                        state = displayedHomeState,
                         onBack = { destination = "weather" }
                     )
 
                     "airQuality" -> AirQualityScreen(
-                        state = uiState.value,
+                        state = displayedHomeState,
                         onBack = { destination = "weather" }
                     )
 
@@ -127,7 +141,7 @@ class MainActivity : ComponentActivity() {
                     )
 
                     "weatherDetails" -> WeatherDetailsScreen(
-                        state = uiState.value,
+                        state = displayedHomeState,
                         onBack = { destination = "weather" }
                     )
 
@@ -178,7 +192,7 @@ class MainActivity : ComponentActivity() {
                         onBack = { destination = "personalization" }
                     )
 
-                    "settings" -> SettingsScreen(
+                    "settings" -> RealSettingsScreen(
                         preferences = preferences,
                         onPreferencesChanged = updatePreferences,
                         onBack = { destination = "personalization" }

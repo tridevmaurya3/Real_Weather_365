@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tridev.realweather365.data.preferences.AppLanguage
 import com.tridev.realweather365.data.preferences.WeatherPreferences
 
 private val NotificationAccent = Color(0xFF3EDAE8)
@@ -59,6 +60,7 @@ fun RealSmartNotificationsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val hindi = preferences.appLanguage == AppLanguage.HINDI
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -69,7 +71,7 @@ fun RealSmartNotificationsScreen(
             )
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            SmartNotificationHeader(onBack)
+            SmartNotificationHeader(hindi, onBack)
 
             LazyColumn(
                 modifier = Modifier
@@ -81,17 +83,16 @@ fun RealSmartNotificationsScreen(
                 item {
                     PermissionCard(
                         granted = permissionGranted,
+                        hindi = hindi,
                         onRequestPermission = onRequestPermission
                     )
                 }
-                item {
-                    EngineStatusCard(preferences)
-                }
+                item { EngineStatusCard(preferences) }
                 item {
                     NotificationToggleCard(
                         icon = Icons.Outlined.Cloud,
-                        title = "Rain Alert",
-                        subtitle = "Notify when rain is likely in the next few hours",
+                        title = if (hindi) "बारिश अलर्ट" else "Rain Alert",
+                        subtitle = if (hindi) "अगले कुछ घंटों में बारिश की संभावना पर सूचना" else "Notify when rain is likely in the next few hours",
                         checked = preferences.rainAlert,
                         onCheckedChange = { onPreferencesChanged(preferences.copy(rainAlert = it)) }
                     )
@@ -99,8 +100,8 @@ fun RealSmartNotificationsScreen(
                 item {
                     NotificationToggleCard(
                         icon = Icons.Outlined.FlashOn,
-                        title = "Lightning Alert",
-                        subtitle = "High-priority warning when thunderstorm risk is detected",
+                        title = if (hindi) "बिजली अलर्ट" else "Lightning Alert",
+                        subtitle = if (hindi) "गरज-चमक जोखिम मिलने पर हाई-प्रायोरिटी चेतावनी" else "High-priority warning when thunderstorm risk is detected",
                         checked = preferences.lightningAlert,
                         danger = true,
                         onCheckedChange = { onPreferencesChanged(preferences.copy(lightningAlert = it)) }
@@ -109,8 +110,8 @@ fun RealSmartNotificationsScreen(
                 item {
                     NotificationToggleCard(
                         icon = Icons.Outlined.Air,
-                        title = "AQI Alert",
-                        subtitle = "Notify when US AQI rises above 100",
+                        title = if (hindi) "AQI अलर्ट" else "AQI Alert",
+                        subtitle = if (hindi) "US AQI 100 से ऊपर जाने पर सूचना" else "Notify when US AQI rises above 100",
                         checked = preferences.aqiAlert,
                         onCheckedChange = { onPreferencesChanged(preferences.copy(aqiAlert = it)) }
                     )
@@ -118,8 +119,8 @@ fun RealSmartNotificationsScreen(
                 item {
                     NotificationToggleCard(
                         icon = Icons.Outlined.CalendarMonth,
-                        title = "Daily Forecast",
-                        subtitle = "Morning summary with high, low and rain chance",
+                        title = if (hindi) "दैनिक पूर्वानुमान" else "Daily Forecast",
+                        subtitle = if (hindi) "सुबह अधिकतम, न्यूनतम और बारिश की संभावना" else "Morning summary with high, low and rain chance",
                         checked = preferences.dailyForecast,
                         onCheckedChange = { onPreferencesChanged(preferences.copy(dailyForecast = it)) }
                     )
@@ -127,8 +128,8 @@ fun RealSmartNotificationsScreen(
                 item {
                     NotificationToggleCard(
                         icon = Icons.Outlined.WbSunny,
-                        title = "Sunrise Alert",
-                        subtitle = "Reminder shortly before local sunrise",
+                        title = if (hindi) "सूर्योदय अलर्ट" else "Sunrise Alert",
+                        subtitle = if (hindi) "स्थानीय सूर्योदय से थोड़ी देर पहले रिमाइंडर" else "Reminder shortly before local sunrise",
                         checked = preferences.sunriseAlert,
                         onCheckedChange = { onPreferencesChanged(preferences.copy(sunriseAlert = it)) }
                     )
@@ -136,8 +137,8 @@ fun RealSmartNotificationsScreen(
                 item {
                     NotificationToggleCard(
                         icon = Icons.Outlined.WarningAmber,
-                        title = "Severe Weather",
-                        subtitle = "High-priority alerts for storms, heavy weather and strong gusts",
+                        title = if (hindi) "गंभीर मौसम" else "Severe Weather",
+                        subtitle = if (hindi) "तूफान, भारी मौसम और तेज झोंकों के लिए हाई-प्रायोरिटी अलर्ट" else "High-priority alerts for storms, heavy weather and strong gusts",
                         checked = preferences.severeWeatherAlert,
                         danger = true,
                         onCheckedChange = { onPreferencesChanged(preferences.copy(severeWeatherAlert = it)) }
@@ -151,7 +152,11 @@ fun RealSmartNotificationsScreen(
                         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.07f))
                     ) {
                         Text(
-                            text = "Background checks run about every 30 minutes when Android allows scheduled work. Alerts use your currently selected worldwide location and are deduplicated to avoid repeated notifications.",
+                            text = if (hindi) {
+                                "बैकग्राउंड चेक लगभग हर ${preferences.effectiveRefreshMinutes()} मिनट पर Android scheduling के अनुसार चलता है। अलर्ट चुनी गई worldwide location का उपयोग करते हैं और दोहराव रोकते हैं।"
+                            } else {
+                                "Background checks run about every ${preferences.effectiveRefreshMinutes()} minutes when Android allows scheduled work. Alerts use your selected worldwide location and are deduplicated."
+                            },
                             modifier = Modifier.padding(13.dp),
                             color = Color.White.copy(alpha = 0.54f),
                             fontSize = 10.sp,
@@ -163,14 +168,12 @@ fun RealSmartNotificationsScreen(
             }
 
             Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding(),
+                modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
                 color = Color(0xEE041119),
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
             ) {
                 Text(
-                    text = "REAL WEATHER 365  •  SMART ALERT ENGINE",
+                    text = if (hindi) "REAL WEATHER 365 • स्मार्ट अलर्ट इंजन" else "REAL WEATHER 365 • SMART ALERT ENGINE",
                     modifier = Modifier.padding(vertical = 10.dp),
                     textAlign = TextAlign.Center,
                     color = Color.White.copy(alpha = 0.42f),
@@ -183,62 +186,40 @@ fun RealSmartNotificationsScreen(
 }
 
 @Composable
-private fun SmartNotificationHeader(onBack: () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().statusBarsPadding(),
-        color = Color(0xEE06151D)
-    ) {
+private fun SmartNotificationHeader(hindi: Boolean, onBack: () -> Unit) {
+    Surface(modifier = Modifier.fillMaxWidth().statusBarsPadding(), color = Color(0xEE06151D)) {
         Row(
             modifier = Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier.size(42.dp).clickable(onClick = onBack),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.ArrowBack,
-                    contentDescription = "Back",
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
+            Box(modifier = Modifier.size(42.dp).clickable(onClick = onBack), contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(22.dp))
             }
             Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Smart Notifications", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                Text("Live worldwide weather intelligence", color = Color.White.copy(alpha = 0.48f), fontSize = 8.sp)
+                Text(if (hindi) "स्मार्ट नोटिफिकेशन" else "Smart Notifications", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Text(if (hindi) "लाइव विश्वव्यापी मौसम इंटेलिजेंस" else "Live worldwide weather intelligence", color = Color.White.copy(alpha = 0.48f), fontSize = 8.sp)
             }
             Box(modifier = Modifier.size(42.dp), contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Outlined.NotificationsActive,
-                    contentDescription = null,
-                    tint = NotificationAccent,
-                    modifier = Modifier.size(20.dp)
-                )
+                Icon(Icons.Outlined.NotificationsActive, null, tint = NotificationAccent, modifier = Modifier.size(20.dp))
             }
         }
     }
 }
 
 @Composable
-private fun PermissionCard(granted: Boolean, onRequestPermission: () -> Unit) {
+private fun PermissionCard(granted: Boolean, hindi: Boolean, onRequestPermission: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         color = NotificationGlass,
-        border = BorderStroke(
-            1.dp,
-            if (granted) NotificationAccent.copy(alpha = 0.35f) else Color(0xFFFFA24A).copy(alpha = 0.45f)
-        )
+        border = BorderStroke(1.dp, if (granted) NotificationAccent.copy(alpha = 0.35f) else Color(0xFFFFA24A).copy(alpha = 0.45f))
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    shape = CircleShape,
-                    color = if (granted) NotificationAccent.copy(alpha = 0.12f) else Color(0xFFFFA24A).copy(alpha = 0.12f)
-                ) {
+                Surface(shape = CircleShape, color = if (granted) NotificationAccent.copy(alpha = 0.12f) else Color(0xFFFFA24A).copy(alpha = 0.12f)) {
                     Icon(
-                        imageVector = if (granted) Icons.Outlined.NotificationsActive else Icons.Outlined.NotificationsOff,
-                        contentDescription = null,
+                        if (granted) Icons.Outlined.NotificationsActive else Icons.Outlined.NotificationsOff,
+                        null,
                         tint = if (granted) NotificationAccent else Color(0xFFFFB15C),
                         modifier = Modifier.padding(9.dp).size(20.dp)
                     )
@@ -246,16 +227,20 @@ private fun PermissionCard(granted: Boolean, onRequestPermission: () -> Unit) {
                 Spacer(modifier = Modifier.size(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (granted) "Android notifications enabled" else "Permission required",
+                        if (granted) {
+                            if (hindi) "Android नोटिफिकेशन चालू" else "Android notifications enabled"
+                        } else {
+                            if (hindi) "अनुमति आवश्यक" else "Permission required"
+                        },
                         color = Color.White,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = if (granted) {
-                            "Real Weather 365 can deliver smart weather alerts in the background."
+                        if (granted) {
+                            if (hindi) "Real Weather 365 बैकग्राउंड में स्मार्ट मौसम अलर्ट दे सकता है।" else "Real Weather 365 can deliver smart weather alerts in the background."
                         } else {
-                            "Allow notifications so enabled weather alerts can reach you."
+                            if (hindi) "अलर्ट पाने के लिए नोटिफिकेशन अनुमति दें।" else "Allow notifications so enabled weather alerts can reach you."
                         },
                         color = Color.White.copy(alpha = 0.52f),
                         fontSize = 9.sp,
@@ -269,12 +254,9 @@ private fun PermissionCard(granted: Boolean, onRequestPermission: () -> Unit) {
                     onClick = onRequestPermission,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = NotificationAccent,
-                        contentColor = Color(0xFF001A20)
-                    )
+                    colors = ButtonDefaults.buttonColors(containerColor = NotificationAccent, contentColor = Color(0xFF001A20))
                 ) {
-                    Text("Enable Android Notifications", fontWeight = FontWeight.Bold)
+                    Text(if (hindi) "Android नोटिफिकेशन चालू करें" else "Enable Android Notifications", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -283,6 +265,7 @@ private fun PermissionCard(granted: Boolean, onRequestPermission: () -> Unit) {
 
 @Composable
 private fun EngineStatusCard(preferences: WeatherPreferences) {
+    val hindi = preferences.appLanguage == AppLanguage.HINDI
     val enabledCount = listOf(
         preferences.rainAlert,
         preferences.lightningAlert,
@@ -298,20 +281,21 @@ private fun EngineStatusCard(preferences: WeatherPreferences) {
         color = Color(0x66091922),
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 13.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = Modifier.padding(horizontal = 13.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Smart alert engine", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                Text(if (hindi) "स्मार्ट अलर्ट इंजन" else "Smart alert engine", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                 Text(
-                    if (enabledCount == 0) "Paused • No alert types enabled" else "Active • $enabledCount of 6 alert types enabled",
+                    if (enabledCount == 0) {
+                        if (hindi) "रुका हुआ • कोई अलर्ट चालू नहीं" else "Paused • No alert types enabled"
+                    } else {
+                        if (hindi) "सक्रिय • 6 में से $enabledCount अलर्ट चालू" else "Active • $enabledCount of 6 alert types enabled"
+                    },
                     color = Color.White.copy(alpha = 0.5f),
                     fontSize = 9.sp
                 )
             }
             Text(
-                if (enabledCount == 0) "OFF" else "30 MIN",
+                if (enabledCount == 0) "OFF" else "${preferences.effectiveRefreshMinutes()} MIN",
                 color = if (enabledCount == 0) Color.White.copy(alpha = 0.45f) else NotificationAccent,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold
@@ -336,27 +320,14 @@ private fun NotificationToggleCard(
         color = NotificationGlass,
         border = BorderStroke(1.dp, NotificationBorder)
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 13.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = Modifier.padding(horizontal = 13.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = CircleShape, color = iconColor.copy(alpha = 0.11f)) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconColor,
-                    modifier = Modifier.padding(8.dp).size(19.dp)
-                )
+                Icon(icon, null, tint = iconColor, modifier = Modifier.padding(8.dp).size(19.dp))
             }
             Spacer(modifier = Modifier.size(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                Text(
-                    subtitle,
-                    color = Color.White.copy(alpha = 0.5f),
-                    fontSize = 9.sp,
-                    lineHeight = 12.sp
-                )
+                Text(subtitle, color = Color.White.copy(alpha = 0.5f), fontSize = 9.sp, lineHeight = 12.sp)
             }
             Switch(checked = checked, onCheckedChange = onCheckedChange)
         }

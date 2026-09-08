@@ -72,5 +72,10 @@ data class WeatherHomeUiState(
         WeatherMetric("Wind", "-- km/h", "--"),
         WeatherMetric("Humidity", "--%", "Loading"),
         WeatherMetric("Pressure", "----", "hPa")
-    )
+    ),
+    val temperatureUnit: String = "°C",
+    val windUnit: String = "km/h",
+    val distanceUnit: String = "km",
+    val languageCode: String = "en",
+    val animationLevel: Int = 2
 )

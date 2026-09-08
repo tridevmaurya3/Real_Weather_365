@@ -12,6 +12,10 @@ import com.tridev.realweather365.R
 import com.tridev.realweather365.data.location.LocationSource
 import com.tridev.realweather365.data.location.WorldLocation
 import com.tridev.realweather365.data.location.WorldLocationCatalog
+import com.tridev.realweather365.data.preferences.WeatherPreferencesStore
+import com.tridev.realweather365.data.preferences.convertSpeed
+import com.tridev.realweather365.data.preferences.convertTemperature
+import com.tridev.realweather365.data.preferences.translateWeatherCondition
 import com.tridev.realweather365.data.weather.LiveWeatherSnapshot
 import com.tridev.realweather365.data.weather.OpenMeteoWeatherRepository
 import com.tridev.realweather365.data.weather.WmoWeather
@@ -44,11 +48,14 @@ data class WeatherWidgetSnapshot(
     val windSpeed: Int,
     val aqi: Int?,
     val updatedAt: String,
+    val temperatureUnit: String,
+    val windUnit: String,
     val hours: List<WidgetHour>
 )
 
 class WeatherWidgetSnapshotStore(context: Context) {
-    private val prefs = context.applicationContext.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
+    private val appContext = context.applicationContext
+    private val prefs = appContext.getSharedPreferences(WIDGET_PREFS, Context.MODE_PRIVATE)
 
     fun saveFromApp(state: WeatherHomeUiState) {
         val hours = state.hourly.take(4).map { WidgetHour(it.time, it.temperature) }
@@ -63,24 +70,33 @@ class WeatherWidgetSnapshotStore(context: Context) {
                 windSpeed = state.windSpeed,
                 aqi = state.aqi,
                 updatedAt = state.updatedAt,
+                temperatureUnit = state.temperatureUnit,
+                windUnit = state.windUnit,
                 hours = hours
             )
         )
     }
 
     fun saveFromLive(location: WorldLocation, live: LiveWeatherSnapshot) {
+        val preferences = WeatherPreferencesStore(appContext).load()
+        val unit = preferences.unitSystem
+        val language = preferences.appLanguage
         saveSnapshot(
             WeatherWidgetSnapshot(
                 location = location,
-                temperature = live.temperature,
-                condition = WmoWeather.condition(live.weatherCode, live.isDay),
-                high = live.high,
-                low = live.low,
+                temperature = convertTemperature(live.temperature, unit),
+                condition = translateWeatherCondition(WmoWeather.condition(live.weatherCode, live.isDay), language),
+                high = convertTemperature(live.high, unit),
+                low = convertTemperature(live.low, unit),
                 humidity = live.humidity,
-                windSpeed = live.windSpeed,
+                windSpeed = convertSpeed(live.windSpeed, unit),
                 aqi = live.aqi,
                 updatedAt = if (live.displayTime.isBlank()) "Updated now" else "Updated ${live.displayTime}",
-                hours = live.hourly24.take(4).map { WidgetHour(it.label, it.temperature) }
+                temperatureUnit = unit.temperatureUnit,
+                windUnit = unit.windUnit,
+                hours = live.hourly24.take(4).map {
+                    WidgetHour(it.label, convertTemperature(it.temperature, unit))
+                }
             )
         )
     }
@@ -119,6 +135,8 @@ class WeatherWidgetSnapshotStore(context: Context) {
             windSpeed = prefs.getInt("wind_speed", 0),
             aqi = aqiValue.takeIf { it >= 0 },
             updatedAt = prefs.getString("updated_at", "Open app to sync") ?: "Open app to sync",
+            temperatureUnit = prefs.getString("temperature_unit", "°C") ?: "°C",
+            windUnit = prefs.getString("wind_unit", "km/h") ?: "km/h",
             hours = hours
         )
     }
@@ -143,6 +161,8 @@ class WeatherWidgetSnapshotStore(context: Context) {
             putInt("wind_speed", snapshot.windSpeed)
             putInt("aqi", snapshot.aqi ?: -1)
             putString("updated_at", snapshot.updatedAt)
+            putString("temperature_unit", snapshot.temperatureUnit)
+            putString("wind_unit", snapshot.windUnit)
             repeat(4) { index ->
                 val hour = snapshot.hours.getOrNull(index)
                 putString("hour_${index}_time", hour?.time ?: "--")
@@ -176,9 +196,7 @@ object WeatherWidgetUpdater {
         snapshot: WeatherWidgetSnapshot
     ) {
         val ids = manager.getAppWidgetIds(ComponentName(context, providerClass))
-        ids.forEach { id ->
-            manager.updateAppWidget(id, buildViews(context, size, snapshot))
-        }
+        ids.forEach { id -> manager.updateAppWidget(id, buildViews(context, size, snapshot)) }
     }
 }
 
@@ -203,12 +221,8 @@ abstract class BaseWeatherWidgetProvider : AppWidgetProvider() {
             try {
                 val store = WeatherWidgetSnapshotStore(appContext)
                 val location = store.loadLocation()
-                val live = runCatching {
-                    OpenMeteoWeatherRepository().load(location)
-                }.getOrNull()
-                if (live != null) {
-                    store.saveFromLive(location, live)
-                }
+                val live = runCatching { OpenMeteoWeatherRepository().load(location) }.getOrNull()
+                if (live != null) store.saveFromLive(location, live)
                 val snapshot = store.load()
                 appWidgetIds.forEach { id ->
                     appWidgetManager.updateAppWidget(id, buildViews(appContext, widgetSize, snapshot))
@@ -263,23 +277,13 @@ private fun buildViews(
 
     if (size != WeatherWidgetSize.SMALL) {
         views.setTextViewText(R.id.widget_humidity, "${snapshot.humidity}%")
-        views.setTextViewText(R.id.widget_wind, "${snapshot.windSpeed} km/h")
+        views.setTextViewText(R.id.widget_wind, "${snapshot.windSpeed} ${snapshot.windUnit}")
         views.setTextViewText(R.id.widget_aqi, snapshot.aqi?.toString() ?: "--")
     }
 
     if (size == WeatherWidgetSize.LARGE) {
-        val timeIds = intArrayOf(
-            R.id.widget_hour_1_time,
-            R.id.widget_hour_2_time,
-            R.id.widget_hour_3_time,
-            R.id.widget_hour_4_time
-        )
-        val tempIds = intArrayOf(
-            R.id.widget_hour_1_temp,
-            R.id.widget_hour_2_temp,
-            R.id.widget_hour_3_temp,
-            R.id.widget_hour_4_temp
-        )
+        val timeIds = intArrayOf(R.id.widget_hour_1_time, R.id.widget_hour_2_time, R.id.widget_hour_3_time, R.id.widget_hour_4_time)
+        val tempIds = intArrayOf(R.id.widget_hour_1_temp, R.id.widget_hour_2_temp, R.id.widget_hour_3_temp, R.id.widget_hour_4_temp)
         repeat(4) { index ->
             val hour = snapshot.hours.getOrNull(index) ?: WidgetHour("--", snapshot.temperature)
             views.setTextViewText(timeIds[index], hour.time)
@@ -290,11 +294,11 @@ private fun buildViews(
 }
 
 private fun weatherEmoji(condition: String): String = when {
-    condition.contains("thunder", ignoreCase = true) || condition.contains("storm", ignoreCase = true) -> "⚡"
-    condition.contains("snow", ignoreCase = true) -> "❄️"
-    condition.contains("rain", ignoreCase = true) || condition.contains("drizzle", ignoreCase = true) -> "🌧️"
-    condition.contains("night", ignoreCase = true) -> "🌙"
-    condition.contains("cloud", ignoreCase = true) || condition.contains("overcast", ignoreCase = true) -> "☁️"
-    condition.contains("fog", ignoreCase = true) -> "🌫️"
+    condition.contains("thunder", true) || condition.contains("storm", true) || condition.contains("गरज") -> "⚡"
+    condition.contains("snow", true) || condition.contains("बर्फ") -> "❄️"
+    condition.contains("rain", true) || condition.contains("drizzle", true) || condition.contains("बारिश") -> "🌧️"
+    condition.contains("night", true) || condition.contains("रात") -> "🌙"
+    condition.contains("cloud", true) || condition.contains("overcast", true) || condition.contains("बादल") -> "☁️"
+    condition.contains("fog", true) || condition.contains("कोहरा") -> "🌫️"
     else -> "☀️"
 }
