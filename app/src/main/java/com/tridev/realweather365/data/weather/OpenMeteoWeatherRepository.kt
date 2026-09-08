@@ -50,6 +50,11 @@ data class LiveWeatherSnapshot(
     val windDirection: Int,
     val windGusts: Int,
     val cloudCover: Int,
+    val cloudCoverLow: Int = 0,
+    val cloudCoverMid: Int = 0,
+    val cloudCoverHigh: Int = 0,
+    val directRadiation: Double = 0.0,
+    val diffuseRadiation: Double = 0.0,
     val dewPoint: Int,
     val visibilityKm: Double?,
     val aqi: Int?,
@@ -96,7 +101,7 @@ class OpenMeteoWeatherRepository {
             append("https://api.open-meteo.com/v1/forecast")
             append("?latitude=${location.latitude}")
             append("&longitude=${location.longitude}")
-            append("&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,cloud_cover,dew_point_2m,is_day")
+            append("&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,direct_radiation,diffuse_radiation,dew_point_2m,is_day")
             append("&hourly=temperature_2m,weather_code,precipitation_probability,precipitation,snowfall,wind_speed_10m,wind_gusts_10m,cape,is_day,visibility")
             append("&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,sunrise,sunset")
             append("&forecast_days=10")
@@ -195,6 +200,11 @@ class OpenMeteoWeatherRepository {
             windDirection = current.optDouble("wind_direction_10m", 0.0).roundToInt(),
             windGusts = current.optDouble("wind_gusts_10m", 0.0).roundToInt(),
             cloudCover = current.optDouble("cloud_cover", 0.0).roundToInt(),
+            cloudCoverLow = current.optDouble("cloud_cover_low", 0.0).roundToInt(),
+            cloudCoverMid = current.optDouble("cloud_cover_mid", 0.0).roundToInt(),
+            cloudCoverHigh = current.optDouble("cloud_cover_high", 0.0).roundToInt(),
+            directRadiation = current.optDouble("direct_radiation", 0.0),
+            diffuseRadiation = current.optDouble("diffuse_radiation", 0.0),
             dewPoint = current.optDouble("dew_point_2m", 0.0).roundToInt(),
             visibilityKm = hourlyVisibility?.numberAt(startIndex)?.div(1000.0),
             aqi = null,
