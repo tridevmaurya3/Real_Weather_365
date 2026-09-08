@@ -93,15 +93,9 @@ fun WeatherHomeScreen(
                 onOpenDetails = navigation.openDetails
             )
             Spacer(modifier = Modifier.weight(1f))
-            CurrentConditions(
-                state = state,
-                onOpenTenDay = navigation.openForecast10
-            )
+            CurrentConditions(state = state, onOpenTenDay = navigation.openForecast10)
             Spacer(modifier = Modifier.height(9.dp))
-            HourlyForecastPanel(
-                hourly = state.hourly,
-                onOpenForecast = navigation.openForecast24
-            )
+            HourlyForecastPanel(hourly = state.hourly, onOpenForecast = navigation.openForecast24)
             Spacer(modifier = Modifier.height(7.dp))
             MetricsPanel(
                 metrics = state.metrics,
@@ -113,7 +107,7 @@ fun WeatherHomeScreen(
                 onOpenRadar = navigation.openRadar,
                 onOpenForecast = navigation.openForecast10,
                 onOpenAlerts = navigation.openAlerts,
-                onOpenMore = navigation.openDetails
+                onOpenMore = navigation.openPersonalization
             )
             Spacer(modifier = Modifier.height(3.dp))
         }
@@ -122,51 +116,28 @@ fun WeatherHomeScreen(
 
 private fun sceneScrim(scene: WeatherScene): Brush = when (scene) {
     WeatherScene.SUNNY -> Brush.verticalGradient(
-        0f to Color(0x19000B12),
-        0.22f to Color.Transparent,
-        0.55f to Color.Transparent,
-        0.73f to Color(0x33000A0F),
-        1f to Color(0xE206131A)
+        0f to Color(0x19000B12), 0.22f to Color.Transparent, 0.55f to Color.Transparent,
+        0.73f to Color(0x33000A0F), 1f to Color(0xE206131A)
     )
-
     WeatherScene.SUNRISE -> Brush.verticalGradient(
-        0f to Color(0x26020A14),
-        0.22f to Color.Transparent,
-        0.50f to Color(0x10000000),
-        0.72f to Color(0x4A090B0C),
-        1f to Color(0xEA071016)
+        0f to Color(0x26020A14), 0.22f to Color.Transparent, 0.50f to Color(0x10000000),
+        0.72f to Color(0x4A090B0C), 1f to Color(0xEA071016)
     )
-
     WeatherScene.RAIN -> Brush.verticalGradient(
-        0f to Color(0x2A03101A),
-        0.26f to Color.Transparent,
-        0.50f to Color(0x14010B10),
-        0.70f to Color(0x52040B10),
-        1f to Color(0xEE061218)
+        0f to Color(0x2A03101A), 0.26f to Color.Transparent, 0.50f to Color(0x14010B10),
+        0.70f to Color(0x52040B10), 1f to Color(0xEE061218)
     )
-
     WeatherScene.THUNDERSTORM -> Brush.verticalGradient(
-        0f to Color(0x42000712),
-        0.22f to Color(0x17020B13),
-        0.48f to Color.Transparent,
-        0.69f to Color(0x62030A10),
-        1f to Color(0xF0030E15)
+        0f to Color(0x42000712), 0.22f to Color(0x17020B13), 0.48f to Color.Transparent,
+        0.69f to Color(0x62030A10), 1f to Color(0xF0030E15)
     )
-
     WeatherScene.SNOW -> Brush.verticalGradient(
-        0f to Color(0x220A2235),
-        0.22f to Color(0x0EFFFFFF),
-        0.50f to Color.Transparent,
-        0.72f to Color(0x42081926),
-        1f to Color(0xE706151E)
+        0f to Color(0x220A2235), 0.22f to Color(0x0EFFFFFF), 0.50f to Color.Transparent,
+        0.72f to Color(0x42081926), 1f to Color(0xE706151E)
     )
-
     WeatherScene.NIGHT -> Brush.verticalGradient(
-        0f to Color(0x26000A17),
-        0.20f to Color(0x0D082038),
-        0.48f to Color.Transparent,
-        0.70f to Color(0x4A03121F),
-        1f to Color(0xEE020C13)
+        0f to Color(0x26000A17), 0.20f to Color(0x0D082038), 0.48f to Color.Transparent,
+        0.70f to Color(0x4A03121F), 1f to Color(0xEE020C13)
     )
 }
 
@@ -177,15 +148,11 @@ private fun LocationHeader(
     onOpenDetails: () -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 6.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
         verticalAlignment = Alignment.Top
     ) {
         Box(
-            modifier = Modifier
-                .size(34.dp)
-                .clickable(onClick = onOpenLocations),
+            modifier = Modifier.size(34.dp).clickable(onClick = onOpenLocations),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -197,10 +164,7 @@ private fun LocationHeader(
         }
 
         Column(
-            modifier = Modifier
-                .weight(1f)
-                .clickable(onClick = onOpenLocations)
-                .padding(vertical = 1.dp),
+            modifier = Modifier.weight(1f).clickable(onClick = onOpenLocations).padding(vertical = 1.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -225,9 +189,7 @@ private fun LocationHeader(
         }
 
         Box(
-            modifier = Modifier
-                .size(34.dp)
-                .clickable(onClick = onOpenDetails),
+            modifier = Modifier.size(34.dp).clickable(onClick = onOpenDetails),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -241,15 +203,8 @@ private fun LocationHeader(
 }
 
 @Composable
-private fun CurrentConditions(
-    state: WeatherHomeUiState,
-    onOpenTenDay: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onOpenTenDay)
-    ) {
+private fun CurrentConditions(state: WeatherHomeUiState, onOpenTenDay: () -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenTenDay)) {
         Text(
             text = "${state.temperature}°",
             color = Color.White,
@@ -264,57 +219,29 @@ private fun CurrentConditions(
             fontWeight = FontWeight.Medium
         )
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(
-                text = "Feels like ${state.feelsLike}°",
-                color = Color.White.copy(alpha = 0.88f),
-                fontSize = 10.sp
-            )
-            Text(
-                text = "H: ${state.high}°   L: ${state.low}°",
-                color = Color.White.copy(alpha = 0.88f),
-                fontSize = 10.sp
-            )
+            Text("Feels like ${state.feelsLike}°", color = Color.White.copy(alpha = 0.88f), fontSize = 10.sp)
+            Text("H: ${state.high}°   L: ${state.low}°", color = Color.White.copy(alpha = 0.88f), fontSize = 10.sp)
         }
     }
 }
 
 @Composable
-private fun HourlyForecastPanel(
-    hourly: List<HourForecast>,
-    onOpenForecast: () -> Unit
-) {
+private fun HourlyForecastPanel(hourly: List<HourForecast>, onOpenForecast: () -> Unit) {
     GlassPanel(cornerRadius = 15.dp, verticalPadding = 9.dp) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onOpenForecast),
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenForecast),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             hourly.take(6).forEach { item ->
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = item.time,
-                        color = Color.White.copy(alpha = 0.74f),
-                        fontSize = 8.sp,
-                        maxLines = 1
-                    )
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                    Text(item.time, color = Color.White.copy(alpha = 0.74f), fontSize = 8.sp, maxLines = 1)
                     Icon(
                         imageVector = weatherIconFor(item.condition),
                         contentDescription = item.condition,
                         tint = weatherIconTint(item.condition),
-                        modifier = Modifier
-                            .padding(vertical = 4.dp)
-                            .size(16.dp)
+                        modifier = Modifier.padding(vertical = 4.dp).size(16.dp)
                     )
-                    Text(
-                        text = "${item.temperature}°",
-                        color = Color.White,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Text("${item.temperature}°", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -322,21 +249,21 @@ private fun HourlyForecastPanel(
 }
 
 private fun weatherIconFor(condition: String): ImageVector = when {
-    condition.contains("night", ignoreCase = true) || condition.contains("moon", ignoreCase = true) -> Icons.Outlined.NightsStay
-    condition.contains("snow", ignoreCase = true) -> Icons.Outlined.AcUnit
-    condition.contains("thunder", ignoreCase = true) || condition.contains("storm", ignoreCase = true) -> Icons.Outlined.FlashOn
-    condition.contains("rain", ignoreCase = true) -> Icons.Outlined.WaterDrop
-    condition.contains("cloud", ignoreCase = true) -> Icons.Outlined.Cloud
+    condition.contains("night", true) || condition.contains("moon", true) -> Icons.Outlined.NightsStay
+    condition.contains("snow", true) -> Icons.Outlined.AcUnit
+    condition.contains("thunder", true) || condition.contains("storm", true) -> Icons.Outlined.FlashOn
+    condition.contains("rain", true) -> Icons.Outlined.WaterDrop
+    condition.contains("cloud", true) -> Icons.Outlined.Cloud
     else -> Icons.Outlined.WbSunny
 }
 
 private fun weatherIconTint(condition: String): Color = when {
-    condition.contains("night", ignoreCase = true) || condition.contains("moon", ignoreCase = true) -> Color(0xFFD8EFFF)
-    condition.contains("snow", ignoreCase = true) -> Color(0xFFE7F6FF)
-    condition.contains("thunder", ignoreCase = true) || condition.contains("storm", ignoreCase = true) -> Color(0xFFFFD65A)
-    condition.contains("rain", ignoreCase = true) -> Color(0xFF82DDF2)
-    condition.contains("cloud", ignoreCase = true) -> Color(0xFFCEE2E7)
-    condition.equals("Sunrise", ignoreCase = true) -> Color(0xFFFFC66B)
+    condition.contains("night", true) || condition.contains("moon", true) -> Color(0xFFD8EFFF)
+    condition.contains("snow", true) -> Color(0xFFE7F6FF)
+    condition.contains("thunder", true) || condition.contains("storm", true) -> Color(0xFFFFD65A)
+    condition.contains("rain", true) -> Color(0xFF82DDF2)
+    condition.contains("cloud", true) -> Color(0xFFCEE2E7)
+    condition.equals("Sunrise", true) -> Color(0xFFFFC66B)
     else -> Color(0xFFFFD44D)
 }
 
@@ -346,35 +273,21 @@ private fun MetricsPanel(
     onOpenAirQuality: () -> Unit,
     onOpenDetails: () -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         metrics.take(4).forEach { metric ->
             MetricCard(
                 metric = metric,
                 modifier = Modifier.weight(1f),
-                onClick = if (metric.label.equals("AQI", ignoreCase = true)) {
-                    onOpenAirQuality
-                } else {
-                    onOpenDetails
-                }
+                onClick = if (metric.label.equals("AQI", true)) onOpenAirQuality else onOpenDetails
             )
         }
     }
 }
 
 @Composable
-private fun MetricCard(
-    metric: WeatherMetric,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
+private fun MetricCard(metric: WeatherMetric, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Surface(
-        modifier = modifier
-            .height(72.dp)
-            .shadow(7.dp, RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick),
+        modifier = modifier.height(72.dp).shadow(7.dp, RoundedCornerShape(14.dp)).clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
         color = Color(0x9C06171E),
         border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.14f)),
@@ -385,32 +298,10 @@ private fun MetricCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(
-                imageVector = metricIcon(metric.label),
-                contentDescription = null,
-                tint = Color(0xFF69DCE9),
-                modifier = Modifier.size(16.dp)
-            )
-            Text(
-                text = metric.label,
-                color = Color.White.copy(alpha = 0.72f),
-                fontSize = 7.sp,
-                maxLines = 1
-            )
-            Text(
-                text = metric.value,
-                color = Color.White,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-                maxLines = 1
-            )
-            Text(
-                text = metric.hint,
-                color = Color.White.copy(alpha = 0.52f),
-                fontSize = 7.sp,
-                maxLines = 1
-            )
+            Icon(metricIcon(metric.label), contentDescription = null, tint = Color(0xFF69DCE9), modifier = Modifier.size(16.dp))
+            Text(metric.label, color = Color.White.copy(alpha = 0.72f), fontSize = 7.sp, maxLines = 1)
+            Text(metric.value, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, maxLines = 1)
+            Text(metric.hint, color = Color.White.copy(alpha = 0.52f), fontSize = 7.sp, maxLines = 1)
         }
     }
 }
@@ -429,17 +320,13 @@ private fun GlassPanel(
     content: @Composable () -> Unit
 ) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .shadow(8.dp, RoundedCornerShape(cornerRadius)),
+        modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(cornerRadius)),
         shape = RoundedCornerShape(cornerRadius),
         color = Color(0x9605141B),
         border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.14f)),
         tonalElevation = 0.dp
     ) {
-        Box(modifier = Modifier.padding(horizontal = 7.dp, vertical = verticalPadding)) {
-            content()
-        }
+        Box(modifier = Modifier.padding(horizontal = 7.dp, vertical = verticalPadding)) { content() }
     }
 }
 
@@ -458,9 +345,7 @@ private fun BottomNavigation(
         tonalElevation = 0.dp
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 3.dp, vertical = 6.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 3.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceAround
         ) {
             NavItem(Icons.Outlined.WbSunny, "Weather", true, onClick = {})
@@ -473,33 +358,19 @@ private fun BottomNavigation(
 }
 
 @Composable
-private fun NavItem(
-    icon: ImageVector,
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
+private fun NavItem(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
     val tint = if (selected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.54f)
     Column(
-        modifier = Modifier
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 2.dp),
+        modifier = Modifier.clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(17.dp))
-        Text(
-            text = label,
-            color = tint,
-            fontSize = 7.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-        )
+        Text(label, color = tint, fontSize = 7.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
     }
 }
 
 @Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 private fun NightHomePreview() {
-    RealWeather365Theme {
-        WeatherHomeScreen(WeatherHomeUiState())
-    }
+    RealWeather365Theme { WeatherHomeScreen(WeatherHomeUiState()) }
 }

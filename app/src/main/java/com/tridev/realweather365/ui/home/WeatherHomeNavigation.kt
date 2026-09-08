@@ -7,5 +7,6 @@ data class WeatherHomeNavigation(
     val openForecast10: () -> Unit = {},
     val openAirQuality: () -> Unit = {},
     val openAlerts: () -> Unit = {},
-    val openDetails: () -> Unit = {}
+    val openDetails: () -> Unit = {},
+    val openPersonalization: () -> Unit = {}
 )

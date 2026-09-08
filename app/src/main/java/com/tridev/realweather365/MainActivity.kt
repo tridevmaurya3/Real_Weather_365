@@ -7,11 +7,15 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tridev.realweather365.data.preferences.BackgroundWorld
+import com.tridev.realweather365.data.preferences.WeatherPreferences
+import com.tridev.realweather365.data.preferences.WeatherPreferencesStore
 import com.tridev.realweather365.ui.airquality.AirQualityScreen
 import com.tridev.realweather365.ui.alerts.SevereWeatherAlertScreen
 import com.tridev.realweather365.ui.details.WeatherDetailsScreen
@@ -20,7 +24,13 @@ import com.tridev.realweather365.ui.forecast.Forecast24HourScreen
 import com.tridev.realweather365.ui.home.WeatherHomeNavigation
 import com.tridev.realweather365.ui.home.WeatherHomeScreen
 import com.tridev.realweather365.ui.home.WeatherHomeViewModel
+import com.tridev.realweather365.ui.home.WeatherScene
 import com.tridev.realweather365.ui.location.GlobalLocationScreen
+import com.tridev.realweather365.ui.personalization.AnimatedBackgroundsScreen
+import com.tridev.realweather365.ui.personalization.PersonalizationHubScreen
+import com.tridev.realweather365.ui.personalization.SettingsScreen
+import com.tridev.realweather365.ui.personalization.SmartNotificationsScreen
+import com.tridev.realweather365.ui.personalization.WidgetsScreen
 import com.tridev.realweather365.ui.radar.RadarScreen
 import com.tridev.realweather365.ui.theme.RealWeather365Theme
 
@@ -40,10 +50,26 @@ class MainActivity : ComponentActivity() {
             RealWeather365Theme {
                 val viewModel: WeatherHomeViewModel = viewModel()
                 val uiState = viewModel.uiState.collectAsStateWithLifecycle()
+                val preferencesStore = remember { WeatherPreferencesStore(this@MainActivity) }
+                var preferences by remember { mutableStateOf(preferencesStore.load()) }
                 var destination by rememberSaveable { mutableStateOf("weather") }
 
+                val displayedHomeState = if (preferences.automaticBackground) {
+                    uiState.value
+                } else {
+                    uiState.value.copy(scene = preferences.manualBackground.toWeatherScene())
+                }
+
+                val updatePreferences: (WeatherPreferences) -> Unit = { updated ->
+                    preferences = updated
+                    preferencesStore.save(updated)
+                }
+
                 BackHandler(enabled = destination != "weather") {
-                    destination = "weather"
+                    destination = when (destination) {
+                        "widgets", "animatedBackgrounds", "smartNotifications", "settings" -> "personalization"
+                        else -> "weather"
+                    }
                 }
 
                 when (destination) {
@@ -86,8 +112,41 @@ class MainActivity : ComponentActivity() {
                         onBack = { destination = "weather" }
                     )
 
+                    "personalization" -> PersonalizationHubScreen(
+                        state = displayedHomeState,
+                        preferences = preferences,
+                        onBack = { destination = "weather" },
+                        onOpenWidgets = { destination = "widgets" },
+                        onOpenBackgrounds = { destination = "animatedBackgrounds" },
+                        onOpenNotifications = { destination = "smartNotifications" },
+                        onOpenSettings = { destination = "settings" }
+                    )
+
+                    "widgets" -> WidgetsScreen(
+                        state = displayedHomeState,
+                        onBack = { destination = "personalization" }
+                    )
+
+                    "animatedBackgrounds" -> AnimatedBackgroundsScreen(
+                        preferences = preferences,
+                        onPreferencesChanged = updatePreferences,
+                        onBack = { destination = "personalization" }
+                    )
+
+                    "smartNotifications" -> SmartNotificationsScreen(
+                        preferences = preferences,
+                        onPreferencesChanged = updatePreferences,
+                        onBack = { destination = "personalization" }
+                    )
+
+                    "settings" -> SettingsScreen(
+                        preferences = preferences,
+                        onPreferencesChanged = updatePreferences,
+                        onBack = { destination = "personalization" }
+                    )
+
                     else -> WeatherHomeScreen(
-                        state = uiState.value,
+                        state = displayedHomeState,
                         navigation = WeatherHomeNavigation(
                             openLocations = { destination = "globalLocation" },
                             openRadar = { destination = "radar" },
@@ -95,11 +154,21 @@ class MainActivity : ComponentActivity() {
                             openForecast10 = { destination = "forecast10" },
                             openAirQuality = { destination = "airQuality" },
                             openAlerts = { destination = "severeAlert" },
-                            openDetails = { destination = "weatherDetails" }
+                            openDetails = { destination = "weatherDetails" },
+                            openPersonalization = { destination = "personalization" }
                         )
                     )
                 }
             }
         }
     }
+}
+
+private fun BackgroundWorld.toWeatherScene(): WeatherScene = when (this) {
+    BackgroundWorld.CLEAR_SKY -> WeatherScene.SUNNY
+    BackgroundWorld.SUNRISE -> WeatherScene.SUNRISE
+    BackgroundWorld.RAIN -> WeatherScene.RAIN
+    BackgroundWorld.STORM -> WeatherScene.THUNDERSTORM
+    BackgroundWorld.SNOW -> WeatherScene.SNOW
+    BackgroundWorld.NIGHT -> WeatherScene.NIGHT
 }
