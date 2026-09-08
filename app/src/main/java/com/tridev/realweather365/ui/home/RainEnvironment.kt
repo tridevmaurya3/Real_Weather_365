@@ -20,7 +20,7 @@ import kotlin.math.PI
 import kotlin.math.sin
 
 @Composable
-fun RainEnvironment(modifier: Modifier = Modifier) {
+fun RainEnvironment(animationLevel: Int = 2, modifier: Modifier = Modifier) {
     val physics = rememberPrecipitationPhysics(storm = false)
     val intensity = physics.intensity.coerceIn(0.08f, 1f)
     val transition = rememberInfiniteTransition(label = "provider-rain-environment")
@@ -47,14 +47,17 @@ fun RainEnvironment(modifier: Modifier = Modifier) {
     )
 
     Canvas(modifier = modifier.fillMaxSize()) {
+        val rainProgress = if (animationLevel <= 0) 0.41f else rainFlow.value
+        val wetProgress = if (animationLevel <= 0) 0.27f else surfaceFlow.value
         drawProviderRainSky(intensity)
         drawRainHorizon(intensity)
         drawRainCityWorld(intensity)
-        drawWetRoadWorld(intensity, surfaceFlow.value)
+        drawWetRoadWorld(intensity, wetProgress)
         drawRainStreetLights(intensity)
         drawWindBentTree(physics)
-        drawProviderRain(physics, rainFlow.value)
-        drawRainSplashes(physics, rainFlow.value)
+        drawScientificRainField(physics, rainProgress)
+        drawScientificImpactField(physics, rainProgress, size.height * 0.54f)
+        drawLensDroplets(physics, rainProgress)
         drawRainAtmosphere(intensity)
     }
 }

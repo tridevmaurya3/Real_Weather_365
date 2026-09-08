@@ -81,8 +81,8 @@ fun WeatherHomeScreen(
                         solar = solar,
                         cloudCover = state.cloudCover
                     )
-                    WeatherScene.RAIN -> RainEnvironment()
-                    WeatherScene.THUNDERSTORM -> ThunderstormEnvironment()
+                    WeatherScene.RAIN -> RainEnvironment(animationLevel = state.animationLevel)
+                    WeatherScene.THUNDERSTORM -> ThunderstormEnvironment(animationLevel = state.animationLevel)
                     WeatherScene.SNOW -> SnowEnvironment()
                     WeatherScene.NIGHT -> AstronomicalNightEnvironment(
                         moon = moon,
