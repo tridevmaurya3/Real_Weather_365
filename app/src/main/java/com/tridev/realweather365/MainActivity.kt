@@ -41,7 +41,7 @@ import com.tridev.realweather365.ui.personalization.PersonalizationHubScreen
 import com.tridev.realweather365.ui.personalization.RealSettingsScreen
 import com.tridev.realweather365.ui.personalization.RealSmartNotificationsScreen
 import com.tridev.realweather365.ui.personalization.RealWidgetsScreen
-import com.tridev.realweather365.ui.radar.RadarScreen
+import com.tridev.realweather365.ui.radar.ReliableRadarScreen
 import com.tridev.realweather365.ui.theme.RealWeather365Theme
 import com.tridev.realweather365.widget.WeatherWidgetUpdater
 import kotlinx.coroutines.delay
@@ -117,7 +117,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 when (destination) {
-                    "radar" -> RadarScreen(
+                    "radar" -> ReliableRadarScreen(
                         state = displayedHomeState,
                         onBack = { destination = "weather" }
                     )

@@ -39,6 +39,11 @@ fun LivingWindEnvironment(
     animationLevel: Int,
     modifier: Modifier = Modifier
 ) {
+    DynamicSceneTransitionOverlay(
+        animationLevel = animationLevel,
+        modifier = modifier
+    )
+
     val physics = rememberLivingWindPhysics()
     if (animationLevel <= 0) {
         Canvas(modifier = modifier.fillMaxSize()) {
