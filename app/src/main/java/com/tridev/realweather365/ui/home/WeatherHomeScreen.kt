@@ -58,22 +58,28 @@ fun WeatherHomeScreen(
     navigation: WeatherHomeNavigation = WeatherHomeNavigation(),
     modifier: Modifier = Modifier
 ) {
+    val solar = rememberSolarVisualState(state.selectedLocation)
+    val visualScene = solarAdjustedScene(state.scene, solar)
+
     Box(modifier = modifier.fillMaxSize()) {
         if (state.animationLevel <= 0) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(staticSceneBrush(state.scene))
+                    .background(staticSceneBrush(visualScene))
             )
         } else {
             Crossfade(
-                targetState = state.scene,
+                targetState = visualScene,
                 animationSpec = tween(durationMillis = if (state.animationLevel == 1) 450 else 900),
                 label = "weather-world-transition"
             ) { scene ->
                 when (scene) {
-                    WeatherScene.SUNNY -> SunnyEnvironment()
-                    WeatherScene.SUNRISE -> SunriseEnvironment()
+                    WeatherScene.SUNNY,
+                    WeatherScene.SUNRISE -> AstronomicalSkyEnvironment(
+                        solar = solar,
+                        cloudCover = state.cloudCover
+                    )
                     WeatherScene.RAIN -> RainEnvironment()
                     WeatherScene.THUNDERSTORM -> ThunderstormEnvironment()
                     WeatherScene.SNOW -> SnowEnvironment()
@@ -82,10 +88,16 @@ fun WeatherHomeScreen(
             }
         }
 
+        SolarLightingOverlay(
+            solar = solar,
+            cloudCover = state.cloudCover,
+            modifier = Modifier.fillMaxSize()
+        )
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(sceneScrim(state.scene))
+                .background(sceneScrim(visualScene))
         )
 
         Column(
