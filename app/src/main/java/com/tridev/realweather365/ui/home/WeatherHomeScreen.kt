@@ -93,6 +93,18 @@ fun WeatherHomeScreen(
             }
         }
 
+        RealCloudSystem(
+            cloudCover = state.cloudCover,
+            windSpeed = state.windSpeed,
+            windDirection = state.windDirection,
+            condition = state.condition,
+            scene = visualScene,
+            solar = solar,
+            moon = moon,
+            animationLevel = state.animationLevel,
+            modifier = Modifier.fillMaxSize()
+        )
+
         SolarLightingOverlay(
             solar = solar,
             cloudCover = state.cloudCover,
