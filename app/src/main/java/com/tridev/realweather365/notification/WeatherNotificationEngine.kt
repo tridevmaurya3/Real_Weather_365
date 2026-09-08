@@ -278,7 +278,8 @@ private class SmartWeatherNotifier(
         if (!canPostNotifications(context)) return
 
         val openApp = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(MainActivity.EXTRA_START_DESTINATION, destinationForAlert(historyKey))
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
@@ -288,7 +289,7 @@ private class SmartWeatherNotifier(
         )
 
         val notification = NotificationCompat.Builder(context, channel)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_weather)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
@@ -304,6 +305,12 @@ private class SmartWeatherNotifier(
             true
         }.getOrDefault(false)
         if (sent) history.markSent(historyKey, token)
+    }
+
+    private fun destinationForAlert(historyKey: String): String = when (historyKey) {
+        "aqi" -> "airQuality"
+        "lightning", "severe" -> "severeAlert"
+        else -> "weather"
     }
 }
 
