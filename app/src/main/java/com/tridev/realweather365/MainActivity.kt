@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,11 +29,12 @@ import com.tridev.realweather365.ui.home.WeatherScene
 import com.tridev.realweather365.ui.location.GlobalLocationScreen
 import com.tridev.realweather365.ui.personalization.AnimatedBackgroundsScreen
 import com.tridev.realweather365.ui.personalization.PersonalizationHubScreen
+import com.tridev.realweather365.ui.personalization.RealWidgetsScreen
 import com.tridev.realweather365.ui.personalization.SettingsScreen
 import com.tridev.realweather365.ui.personalization.SmartNotificationsScreen
-import com.tridev.realweather365.ui.personalization.WidgetsScreen
 import com.tridev.realweather365.ui.radar.RadarScreen
 import com.tridev.realweather365.ui.theme.RealWeather365Theme
+import com.tridev.realweather365.widget.WeatherWidgetUpdater
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,6 +65,12 @@ class MainActivity : ComponentActivity() {
                 val updatePreferences: (WeatherPreferences) -> Unit = { updated ->
                     preferences = updated
                     preferencesStore.save(updated)
+                }
+
+                LaunchedEffect(uiState.value) {
+                    if (!uiState.value.isLoading) {
+                        WeatherWidgetUpdater.syncFromApp(this@MainActivity, uiState.value)
+                    }
                 }
 
                 BackHandler(enabled = destination != "weather") {
@@ -122,7 +130,7 @@ class MainActivity : ComponentActivity() {
                         onOpenSettings = { destination = "settings" }
                     )
 
-                    "widgets" -> WidgetsScreen(
+                    "widgets" -> RealWidgetsScreen(
                         state = displayedHomeState,
                         onBack = { destination = "personalization" }
                     )
