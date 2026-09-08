@@ -4,7 +4,8 @@ enum class WeatherScene {
     SUNNY,
     SUNRISE,
     RAIN,
-    THUNDERSTORM
+    THUNDERSTORM,
+    SNOW
 }
 
 data class HourForecast(
@@ -20,26 +21,26 @@ data class WeatherMetric(
 )
 
 data class WeatherHomeUiState(
-    val scene: WeatherScene = WeatherScene.THUNDERSTORM,
+    val scene: WeatherScene = WeatherScene.SNOW,
     val location: String = "Chandauli",
-    val updatedAt: String = "Live • 8:32 PM",
-    val temperature: Int = 26,
-    val condition: String = "Thunderstorm",
-    val feelsLike: Int = 29,
-    val high: Int = 30,
-    val low: Int = 23,
+    val updatedAt: String = "Live • 9:17 AM",
+    val temperature: Int = -2,
+    val condition: String = "Snow",
+    val feelsLike: Int = -5,
+    val high: Int = 2,
+    val low: Int = -8,
     val hourly: List<HourForecast> = listOf(
-        HourForecast("Now", 26, "Thunderstorm"),
-        HourForecast("9 PM", 25, "Thunderstorm"),
-        HourForecast("11 PM", 24, "Thunderstorm"),
-        HourForecast("1 AM", 24, "Rain"),
-        HourForecast("3 AM", 23, "Rain"),
-        HourForecast("5 AM", 23, "Cloudy")
+        HourForecast("Now", -2, "Snow"),
+        HourForecast("11 AM", -1, "Snow"),
+        HourForecast("1 PM", 0, "Snow"),
+        HourForecast("3 PM", 1, "Snow"),
+        HourForecast("5 PM", 0, "Cloudy"),
+        HourForecast("7 PM", -2, "Snow")
     ),
     val metrics: List<WeatherMetric> = listOf(
-        WeatherMetric("AQI", "71", "Moderate"),
-        WeatherMetric("Wind", "22 km/h", "SSE"),
-        WeatherMetric("Humidity", "87%", "Very humid"),
-        WeatherMetric("Pressure", "1004", "hPa")
+        WeatherMetric("AQI", "54", "Moderate"),
+        WeatherMetric("Wind", "14 km/h", "NW"),
+        WeatherMetric("Humidity", "78%", "Humid"),
+        WeatherMetric("Pressure", "1012", "hPa")
     )
 )
