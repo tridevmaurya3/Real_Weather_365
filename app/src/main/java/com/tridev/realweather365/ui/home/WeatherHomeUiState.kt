@@ -1,5 +1,8 @@
 package com.tridev.realweather365.ui.home
 
+import com.tridev.realweather365.data.location.WorldLocation
+import com.tridev.realweather365.data.location.WorldLocationCatalog
+
 enum class WeatherScene {
     SUNNY,
     SUNRISE,
@@ -24,6 +27,7 @@ data class WeatherMetric(
 data class WeatherHomeUiState(
     val scene: WeatherScene = WeatherScene.NIGHT,
     val location: String = "Chandauli",
+    val selectedLocation: WorldLocation = WorldLocationCatalog.chandauli,
     val updatedAt: String = "Live • 10:48 PM",
     val temperature: Int = 18,
     val condition: String = "Clear Night",

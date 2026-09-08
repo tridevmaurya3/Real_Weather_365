@@ -19,6 +19,7 @@ import com.tridev.realweather365.ui.forecast.Forecast10DayScreen
 import com.tridev.realweather365.ui.forecast.Forecast24HourScreen
 import com.tridev.realweather365.ui.home.WeatherHomeScreen
 import com.tridev.realweather365.ui.home.WeatherHomeViewModel
+import com.tridev.realweather365.ui.location.GlobalLocationScreen
 import com.tridev.realweather365.ui.radar.RadarScreen
 import com.tridev.realweather365.ui.theme.RealWeather365Theme
 
@@ -38,7 +39,7 @@ class MainActivity : ComponentActivity() {
             RealWeather365Theme {
                 val viewModel: WeatherHomeViewModel = viewModel()
                 val uiState = viewModel.uiState.collectAsStateWithLifecycle()
-                var destination by rememberSaveable { mutableStateOf("weatherDetails") }
+                var destination by rememberSaveable { mutableStateOf("globalLocation") }
 
                 BackHandler(enabled = destination != "weather") {
                     destination = "weather"
@@ -72,6 +73,12 @@ class MainActivity : ComponentActivity() {
 
                     "weatherDetails" -> WeatherDetailsScreen(
                         location = uiState.value.location,
+                        onBack = { destination = "weather" }
+                    )
+
+                    "globalLocation" -> GlobalLocationScreen(
+                        selectedLocation = uiState.value.selectedLocation,
+                        onLocationSelected = viewModel::selectLocation,
                         onBack = { destination = "weather" }
                     )
 
