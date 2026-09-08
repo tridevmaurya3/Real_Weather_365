@@ -22,6 +22,7 @@ import com.tridev.realweather365.data.weather.LiveWeatherSnapshot
 import com.tridev.realweather365.data.weather.WeatherCacheStore
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.sin
 import kotlinx.coroutines.delay
@@ -34,6 +35,8 @@ data class AtmosphereVisibilityPhysics(
     val windSpeedKmh: Int,
     val windDirection: Int,
     val weatherCode: Int,
+    val dewPointSpreadC: Int,
+    val extinctionPerKm: Float,
     val fogDensity: Float,
     val hazeDensity: Float,
     val contrastLoss: Float
@@ -107,7 +110,9 @@ fun VisibilityAtmosphereOverlay(
                 val x = wrapVisibility(rawX, size.width, width)
                 val yBase = size.height * (0.22f + index * 0.085f)
                 val y = yBase + motion * size.height * 0.038f * flowY
-                val alpha = (fog * (0.13f + (index % 3) * 0.035f)).coerceAtMost(0.30f)
+                val distanceKm = 0.18f + index * 0.42f
+                val transmittance = exp(-physics.extinctionPerKm * distanceKm)
+                val alpha = (fog * (1f - transmittance) * (0.72f + (index % 3) * 0.08f)).coerceAtMost(0.42f)
                 drawOval(
                     brush = Brush.horizontalGradient(
                         colors = listOf(
@@ -132,6 +137,23 @@ fun VisibilityAtmosphereOverlay(
                     1f to Color(0xFFCBD8DA).copy(alpha = fog * 0.34f)
                 )
             )
+
+            // Forward-scattered halos: stronger in dense droplet fog, absent in dry haze.
+            listOf(0.27f, 0.73f).forEach { x ->
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color(0xFFFFE4AC).copy(alpha = fog * 0.16f),
+                            Color(0xFFFFE9BE).copy(alpha = fog * 0.05f),
+                            Color.Transparent
+                        ),
+                        center = Offset(size.width * x, size.height * 0.47f),
+                        radius = size.width * (0.08f + fog * 0.08f)
+                    ),
+                    radius = size.width * (0.08f + fog * 0.08f),
+                    center = Offset(size.width * x, size.height * 0.47f)
+                )
+            }
         }
 
         if (lowVisibility > 0.03f) {
@@ -158,12 +180,14 @@ private fun rememberAtmosphereVisibilityPhysics(): AtmosphereVisibilityPhysics {
     return remember(snapshot) { calculateAtmosphereVisibility(snapshot) }
 }
 
-private fun calculateAtmosphereVisibility(snapshot: LiveWeatherSnapshot?): AtmosphereVisibilityPhysics {
+internal fun calculateAtmosphereVisibility(snapshot: LiveWeatherSnapshot?): AtmosphereVisibilityPhysics {
     val visibility = (snapshot?.visibilityKm ?: 30.0).coerceIn(0.05, 80.0)
     val humidity = (snapshot?.humidity ?: 0).coerceIn(0, 100)
     val pm25 = (snapshot?.pm25 ?: 0.0).coerceAtLeast(0.0)
     val aqi = (snapshot?.aqi ?: 0).coerceAtLeast(0)
     val code = snapshot?.weatherCode ?: 0
+    val dewPointSpread = ((snapshot?.temperature ?: 20) - (snapshot?.dewPoint ?: 0)).coerceAtLeast(0)
+    val extinction = (3.912 / visibility).toFloat().coerceIn(0.02f, 24f)
 
     val visibilityFog = when {
         visibility < 0.35 -> 0.94f
@@ -181,7 +205,13 @@ private fun calculateAtmosphereVisibility(snapshot: LiveWeatherSnapshot?): Atmos
         humidity >= 91 -> 0.06f
         else -> 0f
     }
-    val fogDensity = max(fogCodeFloor, visibilityFog + humidityBoost).coerceIn(0f, 0.94f)
+    val saturationBoost = when {
+        dewPointSpread <= 1 -> 0.18f
+        dewPointSpread <= 2 -> 0.11f
+        dewPointSpread <= 4 -> 0.05f
+        else -> 0f
+    }
+    val fogDensity = max(fogCodeFloor, visibilityFog + humidityBoost + saturationBoost).coerceIn(0f, 0.96f)
 
     val pmFactor = when {
         pm25 >= 150 -> 0.82f
@@ -226,6 +256,8 @@ private fun calculateAtmosphereVisibility(snapshot: LiveWeatherSnapshot?): Atmos
         windSpeedKmh = snapshot?.windSpeed ?: 0,
         windDirection = snapshot?.windDirection ?: 0,
         weatherCode = code,
+        dewPointSpreadC = dewPointSpread,
+        extinctionPerKm = extinction,
         fogDensity = fogDensity,
         hazeDensity = hazeDensity,
         contrastLoss = contrastLoss
