@@ -1,14 +1,8 @@
 package com.tridev.realweather365.ui.radar
 
-import android.graphics.Paint
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -28,18 +21,24 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.LocationOn
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.Thermostat
 import androidx.compose.material.icons.outlined.WaterDrop
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,54 +50,82 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tridev.realweather365.ui.theme.RealWeather365Theme
-import kotlin.math.cos
-import kotlin.math.sin
+import com.tridev.realweather365.data.radar.RadarMapBundle
+import com.tridev.realweather365.data.radar.RadarRenderableFrame
+import com.tridev.realweather365.data.radar.RainViewerRadarRepository
+import com.tridev.realweather365.ui.home.WeatherHomeUiState
+import kotlinx.coroutines.delay
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import kotlin.math.max
 
 private enum class RadarLayer {
     RAIN,
     TEMPERATURE
 }
 
+private sealed interface RadarLoadState {
+    data object Loading : RadarLoadState
+    data class Ready(val bundle: RadarMapBundle) : RadarLoadState
+}
+
 @Composable
 fun RadarScreen(
-    location: String,
+    state: WeatherHomeUiState,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val repository = remember(context) { RainViewerRadarRepository(context) }
+    val location = state.selectedLocation
+
     var selectedLayer by rememberSaveable { mutableStateOf(RadarLayer.RAIN) }
+    var zoom by rememberSaveable { mutableStateOf(6) }
+    var refreshToken by remember { mutableStateOf(0) }
+    var radarState by remember(location.id, zoom) { mutableStateOf<RadarLoadState>(RadarLoadState.Loading) }
+    var frameIndex by rememberSaveable(location.id, zoom) { mutableStateOf(0) }
     var isPlaying by rememberSaveable { mutableStateOf(true) }
 
-    val transition = rememberInfiniteTransition(label = "radar-animation")
-    val radarProgress = transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 5200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "radar-progress"
-    )
-    val cloudDrift = transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 17000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "radar-drift"
-    )
+    LaunchedEffect(location.id, zoom, refreshToken) {
+        radarState = RadarLoadState.Loading
+        radarState = RadarLoadState.Ready(
+            repository.load(
+                location = location,
+                zoom = zoom,
+                maxFrames = 7
+            )
+        )
+    }
 
-    val animatedProgress = if (isPlaying) radarProgress.value else 0.38f
+    val bundle = (radarState as? RadarLoadState.Ready)?.bundle
+    val frames = bundle?.frames.orEmpty()
+
+    LaunchedEffect(location.id, zoom, frames.size) {
+        frameIndex = if (frames.isEmpty()) 0 else 0
+    }
+
+    LaunchedEffect(isPlaying, frames.size, selectedLayer) {
+        if (selectedLayer != RadarLayer.RAIN || !isPlaying || frames.size < 2) return@LaunchedEffect
+        while (true) {
+            delay(760)
+            frameIndex = (frameIndex + 1) % frames.size
+        }
+    }
+
+    val currentFrame = frames.getOrNull(frameIndex.coerceIn(0, max(0, frames.lastIndex)))
 
     Box(
         modifier = modifier
@@ -106,13 +133,22 @@ fun RadarScreen(
             .background(Color(0xFF06131B))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            RadarHeader(location = location, onBack = onBack)
+            RadarHeader(
+                location = state.location,
+                onBack = onBack,
+                onRefresh = { refreshToken++ }
+            )
 
             Box(modifier = Modifier.weight(1f)) {
-                RadarMapCanvas(
-                    progress = animatedProgress,
-                    drift = cloudDrift.value,
+                RadarMapViewport(
+                    state = state,
+                    bundle = bundle,
+                    frame = currentFrame,
                     layer = selectedLayer,
+                    loading = radarState is RadarLoadState.Loading,
+                    zoom = zoom,
+                    onZoomIn = { if (zoom < 7) zoom++ },
+                    onZoomOut = { if (zoom > 4) zoom-- },
                     modifier = Modifier.fillMaxSize()
                 )
 
@@ -126,6 +162,9 @@ fun RadarScreen(
 
                 RadarStatusBadge(
                     layer = selectedLayer,
+                    bundle = bundle,
+                    frame = currentFrame,
+                    loading = radarState is RadarLoadState.Loading,
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(start = 12.dp, top = 12.dp)
@@ -133,43 +172,40 @@ fun RadarScreen(
             }
 
             RadarTimeline(
+                frames = frames,
+                frameIndex = frameIndex,
+                onFrameIndexChanged = { frameIndex = it },
                 isPlaying = isPlaying,
                 onTogglePlay = { isPlaying = !isPlaying },
-                progress = animatedProgress,
-                layer = selectedLayer
+                layer = selectedLayer,
+                timeZoneId = location.timeZoneId,
+                languageCode = state.languageCode,
+                bundle = bundle
             )
         }
     }
 }
 
 @Composable
-private fun RadarHeader(location: String, onBack: () -> Unit) {
+private fun RadarHeader(
+    location: String,
+    onBack: () -> Unit,
+    onRefresh: () -> Unit
+) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .statusBarsPadding(),
+        modifier = Modifier.fillMaxWidth().statusBarsPadding(),
         color = Color(0xF2071720),
         tonalElevation = 0.dp
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(58.dp)
-                .padding(horizontal = 8.dp),
+            modifier = Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clickable(onClick = onBack),
+                modifier = Modifier.size(40.dp).clickable(onClick = onBack),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.ArrowBack,
-                    contentDescription = "Back",
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
+                Icon(Icons.Outlined.ArrowBack, "Back", tint = Color.White, modifier = Modifier.size(22.dp))
             }
 
             Column(
@@ -177,67 +213,289 @@ private fun RadarHeader(location: String, onBack: () -> Unit) {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Outlined.LocationOn,
-                        contentDescription = null,
-                        tint = Color(0xFF75E5F0),
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Text(
-                        text = location,
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Icon(Icons.Outlined.LocationOn, null, tint = Color(0xFF75E5F0), modifier = Modifier.size(13.dp))
+                    Text(location, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 }
                 Text(
-                    text = "Live Radar",
+                    "Live Radar • real provider frames",
                     color = Color.White.copy(alpha = 0.58f),
-                    fontSize = 9.sp,
-                    letterSpacing = 0.5.sp
+                    fontSize = 8.sp,
+                    letterSpacing = 0.3.sp
                 )
             }
 
             Box(
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(40.dp).clickable(onClick = onRefresh),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.MoreVert,
-                    contentDescription = "More",
-                    tint = Color.White.copy(alpha = 0.86f),
-                    modifier = Modifier.size(21.dp)
-                )
+                Icon(Icons.Outlined.Refresh, "Refresh radar", tint = Color.White.copy(alpha = 0.88f), modifier = Modifier.size(20.dp))
             }
         }
     }
 }
 
 @Composable
-private fun RadarStatusBadge(layer: RadarLayer, modifier: Modifier = Modifier) {
+private fun RadarMapViewport(
+    state: WeatherHomeUiState,
+    bundle: RadarMapBundle?,
+    frame: RadarRenderableFrame?,
+    layer: RadarLayer,
+    loading: Boolean,
+    zoom: Int,
+    onZoomIn: () -> Unit,
+    onZoomOut: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val location = state.selectedLocation
+
+    Box(modifier = modifier.background(Color(0xFF0C252E))) {
+        Canvas(Modifier.fillMaxSize()) {
+            drawRect(
+                brush = Brush.verticalGradient(
+                    listOf(Color(0xFF102A32), Color(0xFF12343A), Color(0xFF0A222B))
+                )
+            )
+
+            val verticalLines = 7
+            val horizontalLines = 10
+            repeat(verticalLines) { index ->
+                val x = size.width * index / (verticalLines - 1f)
+                drawLine(
+                    Color.White.copy(alpha = 0.055f),
+                    Offset(x, 0f),
+                    Offset(x, size.height),
+                    strokeWidth = 1f
+                )
+            }
+            repeat(horizontalLines) { index ->
+                val y = size.height * index / (horizontalLines - 1f)
+                drawLine(
+                    Color.White.copy(alpha = 0.045f),
+                    Offset(0f, y),
+                    Offset(size.width, y),
+                    strokeWidth = 1f
+                )
+            }
+
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val ringMax = size.minDimension * 0.43f
+            listOf(0.28f, 0.52f, 0.76f, 1f).forEach { fraction ->
+                drawCircle(
+                    color = Color(0xFF54DDEA).copy(alpha = 0.10f),
+                    radius = ringMax * fraction,
+                    center = center,
+                    style = Stroke(width = 1.2f)
+                )
+            }
+
+            drawLine(
+                Color.White.copy(alpha = 0.07f),
+                Offset(center.x, 0f),
+                Offset(center.x, size.height),
+                strokeWidth = 1f
+            )
+            drawLine(
+                Color.White.copy(alpha = 0.07f),
+                Offset(0f, center.y),
+                Offset(size.width, center.y),
+                strokeWidth = 1f
+            )
+        }
+
+        if (layer == RadarLayer.RAIN && frame != null) {
+            val imageBitmap = remember(frame.bitmap) { frame.bitmap.asImageBitmap() }
+            Image(
+                bitmap = imageBitmap,
+                contentDescription = "RainViewer radar precipitation",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer(alpha = 0.88f),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        if (layer == RadarLayer.TEMPERATURE) {
+            val temperatureTint = when {
+                state.temperature <= 5 -> listOf(Color(0x88386FD4), Color(0x5536B7DD), Color.Transparent)
+                state.temperature <= 20 -> listOf(Color(0x7756CBE2), Color(0x5538D4A4), Color.Transparent)
+                state.temperature <= 32 -> listOf(Color(0x66F2D357), Color(0x55F2A84C), Color.Transparent)
+                else -> listOf(Color(0x77F28B42), Color(0x66E74D3A), Color.Transparent)
+            }
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Brush.radialGradient(temperatureTint))
+            )
+        }
+
+        Canvas(Modifier.fillMaxSize()) {
+            val center = Offset(size.width / 2f, size.height / 2f)
+            drawCircle(Color(0x553DE9F3), radius = 18f, center = center)
+            drawCircle(Color.White, radius = 8f, center = center)
+            drawCircle(Color(0xFF21D7E7), radius = 5f, center = center)
+            drawCircle(Color.White.copy(alpha = 0.65f), radius = 25f, center = center, style = Stroke(width = 1.2f))
+        }
+
+        ZoomControls(
+            zoom = zoom,
+            onZoomIn = onZoomIn,
+            onZoomOut = onZoomOut,
+            modifier = Modifier.align(Alignment.TopEnd).padding(top = 12.dp, end = 78.dp)
+        )
+
+        Surface(
+            modifier = Modifier.align(Alignment.BottomStart).padding(start = 10.dp, bottom = 10.dp),
+            shape = RoundedCornerShape(10.dp),
+            color = Color(0xB9071922),
+            border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.10f))
+        ) {
+            Column(Modifier.padding(horizontal = 9.dp, vertical = 6.dp)) {
+                Text(
+                    "${location.name} • ${String.format(Locale.US, "%.3f", location.latitude)}, ${String.format(Locale.US, "%.3f", location.longitude)}",
+                    color = Color.White.copy(alpha = 0.82f),
+                    fontSize = 8.sp
+                )
+                Text(
+                    if (layer == RadarLayer.RAIN) "Radar centered on selected coordinates" else "Temperature tint uses current weather value",
+                    color = Color.White.copy(alpha = 0.48f),
+                    fontSize = 7.sp
+                )
+            }
+        }
+
+        RadarAttribution(
+            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 10.dp, bottom = 10.dp)
+        )
+
+        if (loading) {
+            Surface(
+                modifier = Modifier.align(Alignment.Center),
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xD5071922),
+                border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.14f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color(0xFF63DFEA))
+                    Text("Loading real radar frames…", color = Color.White, fontSize = 9.sp)
+                }
+            }
+        } else if (layer == RadarLayer.RAIN && bundle?.coverageAvailable == false) {
+            RadarMessage(
+                title = "Radar coverage unavailable",
+                detail = "This selected location is outside the provider's current composite radar coverage.",
+                modifier = Modifier.align(Alignment.Center)
+            )
+        } else if (layer == RadarLayer.RAIN && bundle?.errorMessage != null) {
+            RadarMessage(
+                title = "Radar temporarily unavailable",
+                detail = bundle.errorMessage,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+    }
+}
+
+@Composable
+private fun RadarMessage(title: String, detail: String, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.padding(horizontal = 28.dp),
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xE0081B25),
+        border = BorderStroke(0.8.dp, Color.White.copy(alpha = 0.15f))
+    ) {
+        Column(Modifier.padding(15.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(4.dp))
+            Text(detail, color = Color.White.copy(alpha = 0.58f), fontSize = 9.sp, textAlign = TextAlign.Center, lineHeight = 13.sp)
+        }
+    }
+}
+
+@Composable
+private fun ZoomControls(
+    zoom: Int,
+    onZoomIn: () -> Unit,
+    onZoomOut: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(13.dp),
+        color = Color(0xCF071922),
+        border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.14f))
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.size(34.dp).clickable(onClick = onZoomIn), contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.Add, "Zoom in", tint = if (zoom < 7) Color.White else Color.White.copy(alpha = 0.28f), modifier = Modifier.size(17.dp))
+            }
+            Text("Z$zoom", color = Color(0xFF6FE1EB), fontSize = 7.sp, fontWeight = FontWeight.Bold)
+            Box(Modifier.size(34.dp).clickable(onClick = onZoomOut), contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.Remove, "Zoom out", tint = if (zoom > 4) Color.White else Color.White.copy(alpha = 0.28f), modifier = Modifier.size(17.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RadarAttribution(modifier: Modifier = Modifier) {
+    val uriHandler = LocalUriHandler.current
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(9.dp),
+        color = Color(0xA5071821),
+        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f))
+    ) {
+        Text(
+            text = "Weather radar: RainViewer",
+            modifier = Modifier
+                .clickable { runCatching { uriHandler.openUri("https://www.rainviewer.com/") } }
+                .padding(horizontal = 7.dp, vertical = 5.dp),
+            color = Color.White.copy(alpha = 0.58f),
+            fontSize = 7.sp
+        )
+    }
+}
+
+@Composable
+private fun RadarStatusBadge(
+    layer: RadarLayer,
+    bundle: RadarMapBundle?,
+    frame: RadarRenderableFrame?,
+    loading: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val text = when {
+        layer == RadarLayer.TEMPERATURE -> "TEMPERATURE • CURRENT VALUE"
+        loading -> "PRECIPITATION • CONNECTING"
+        bundle?.coverageAvailable == false -> "PRECIPITATION • NO COVERAGE"
+        frame == null -> "PRECIPITATION • UNAVAILABLE"
+        frame.meta.isNowcast -> "PRECIPITATION • NOWCAST"
+        !frame.hasPrecipitationEcho -> "PRECIPITATION • NO ECHO"
+        else -> "PRECIPITATION • OBSERVED"
+    }
+    val dot = when {
+        bundle?.coverageAvailable == false -> Color(0xFFFFB15C)
+        frame == null && !loading -> Color(0xFFFF7C7C)
+        else -> Color(0xFF55EAA5)
+    }
+
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
         color = Color(0xC9081B25),
-        border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.14f)),
-        tonalElevation = 0.dp
+        border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.14f))
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(7.dp)
-                    .background(Color(0xFF55EAA5), CircleShape)
-            )
-            Text(
-                text = if (layer == RadarLayer.RAIN) "PRECIPITATION • LIVE" else "TEMPERATURE • LIVE",
-                color = Color.White.copy(alpha = 0.86f),
-                fontSize = 8.sp,
-                fontWeight = FontWeight.Medium
-            )
+            Box(Modifier.size(7.dp).background(dot, CircleShape))
+            Text(text, color = Color.White.copy(alpha = 0.86f), fontSize = 8.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -252,45 +510,25 @@ private fun RadarLayerControls(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
         color = Color(0xD0071922),
-        border = BorderStroke(0.7.dp, Color.White.copy(alpha = 0.16f)),
-        tonalElevation = 0.dp
+        border = BorderStroke(0.7.dp, Color.White.copy(alpha = 0.16f))
     ) {
-        Column(
-            modifier = Modifier.padding(vertical = 5.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            LayerControlItem(
-                icon = Icons.Outlined.Layers,
-                label = "Layers",
-                selected = false,
-                onClick = { }
-            )
-            LayerControlItem(
-                icon = Icons.Outlined.WaterDrop,
-                label = "Rain",
-                selected = selectedLayer == RadarLayer.RAIN,
-                onClick = { onLayerChange(RadarLayer.RAIN) }
-            )
-            LayerControlItem(
-                icon = Icons.Outlined.Thermostat,
-                label = "Temp",
-                selected = selectedLayer == RadarLayer.TEMPERATURE,
-                onClick = { onLayerChange(RadarLayer.TEMPERATURE) }
-            )
+        Column(modifier = Modifier.padding(vertical = 5.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            LayerControlItem(Icons.Outlined.Layers, "Layers", false) { }
+            LayerControlItem(Icons.Outlined.WaterDrop, "Rain", selectedLayer == RadarLayer.RAIN) { onLayerChange(RadarLayer.RAIN) }
+            LayerControlItem(Icons.Outlined.Thermostat, "Temp", selectedLayer == RadarLayer.TEMPERATURE) { onLayerChange(RadarLayer.TEMPERATURE) }
         }
     }
 }
 
 @Composable
 private fun LayerControlItem(
-    icon: ImageVector,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     selected: Boolean,
     onClick: () -> Unit
 ) {
     val tint = if (selected) Color(0xFF64E8F2) else Color.White.copy(alpha = 0.72f)
     val background = if (selected) Color(0x263CE7F3) else Color.Transparent
-
     Column(
         modifier = Modifier
             .width(54.dp)
@@ -299,468 +537,160 @@ private fun LayerControlItem(
             .padding(vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = tint,
-            modifier = Modifier.size(18.dp)
-        )
-        Text(
-            text = label,
-            color = tint,
-            fontSize = 7.sp,
-            modifier = Modifier.padding(top = 2.dp)
-        )
+        Icon(icon, label, tint = tint, modifier = Modifier.size(18.dp))
+        Text(label, color = tint, fontSize = 7.sp, modifier = Modifier.padding(top = 2.dp))
     }
 }
 
 @Composable
 private fun RadarTimeline(
+    frames: List<RadarRenderableFrame>,
+    frameIndex: Int,
+    onFrameIndexChanged: (Int) -> Unit,
     isPlaying: Boolean,
     onTogglePlay: () -> Unit,
-    progress: Float,
-    layer: RadarLayer
+    layer: RadarLayer,
+    timeZoneId: String,
+    languageCode: String,
+    bundle: RadarMapBundle?
 ) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding(),
+        modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
         color = Color(0xF4081821),
-        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
-        tonalElevation = 0.dp
+        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f))
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 9.dp)) {
+            if (layer == RadarLayer.TEMPERATURE) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.Thermostat, null, tint = Color(0xFFFFB65F), modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text("Current temperature context", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Spatial temperature grid is not presented as live radar data.", color = Color.White.copy(alpha = 0.50f), fontSize = 8.sp)
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                RadarLegend(RadarLayer.TEMPERATURE)
+                return@Column
+            }
+
+            val current = frames.getOrNull(frameIndex.coerceIn(0, max(0, frames.lastIndex)))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Surface(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clickable(onClick = onTogglePlay),
+                    modifier = Modifier.size(36.dp).clickable(enabled = frames.size > 1, onClick = onTogglePlay),
                     shape = CircleShape,
                     color = Color(0xFF143442),
                     border = BorderStroke(0.7.dp, Color.White.copy(alpha = 0.16f))
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = if (isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                            contentDescription = if (isPlaying) "Pause radar" else "Play radar",
-                            tint = Color.White,
+                            if (isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
+                            if (isPlaying) "Pause radar" else "Play radar",
+                            tint = if (frames.size > 1) Color.White else Color.White.copy(alpha = 0.30f),
                             modifier = Modifier.size(18.dp)
                         )
                     }
                 }
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Bottom
-                    ) {
+                Column(Modifier.weight(1f)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(
-                            text = "Now",
+                            current?.let { formatRadarTime(it.meta.timeEpochSeconds, timeZoneId, languageCode) } ?: "No radar frame",
                             color = Color.White,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = if (layer == RadarLayer.RAIN) "Thu 9:41 AM" else "Surface temperature",
-                            color = Color.White.copy(alpha = 0.55f),
-                            fontSize = 8.sp
+                            current?.let { if (it.meta.isNowcast) "NOWCAST" else "OBSERVED" } ?: "",
+                            color = if (current?.meta?.isNowcast == true) Color(0xFFFFCF62) else Color(0xFF63DFEA),
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    RadarProgressBar(progress = progress, layer = layer)
+
+                    if (frames.size > 1) {
+                        Slider(
+                            value = frameIndex.toFloat().coerceIn(0f, frames.lastIndex.toFloat()),
+                            onValueChange = { onFrameIndexChanged(it.toInt().coerceIn(0, frames.lastIndex)) },
+                            valueRange = 0f..frames.lastIndex.toFloat(),
+                            steps = (frames.size - 2).coerceAtLeast(0),
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color.White,
+                                activeTrackColor = Color(0xFF58E1ED),
+                                inactiveTrackColor = Color.White.copy(alpha = 0.14f)
+                            ),
+                            modifier = Modifier.height(28.dp)
+                        )
+                    } else {
+                        Spacer(Modifier.height(5.dp))
+                    }
                 }
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 46.dp, top = 5.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                listOf("Now", "10:00", "11:00", "12:00", "13:00").forEach { time ->
-                    Text(
-                        text = time,
-                        color = Color.White.copy(alpha = if (time == "Now") 0.90f else 0.45f),
-                        fontSize = 7.sp
-                    )
+            if (frames.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(start = 46.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    listOf(0, frames.lastIndex / 2, frames.lastIndex).distinct().forEach { index ->
+                        Text(
+                            formatRadarClock(frames[index].meta.timeEpochSeconds, timeZoneId, languageCode),
+                            color = Color.White.copy(alpha = if (index == frameIndex) 0.90f else 0.45f),
+                            fontSize = 7.sp
+                        )
+                    }
                 }
+            } else {
+                Text(
+                    when {
+                        bundle?.coverageAvailable == false -> "No composite radar coverage for this location."
+                        bundle?.errorMessage != null -> bundle.errorMessage
+                        else -> "Waiting for radar timeline…"
+                    },
+                    modifier = Modifier.padding(start = 46.dp, top = 4.dp),
+                    color = Color.White.copy(alpha = 0.52f),
+                    fontSize = 8.sp
+                )
             }
 
-            Spacer(modifier = Modifier.height(9.dp))
-            RadarLegend(layer = layer)
+            Spacer(Modifier.height(7.dp))
+            RadarLegend(RadarLayer.RAIN)
         }
-    }
-}
-
-@Composable
-private fun RadarProgressBar(progress: Float, layer: RadarLayer) {
-    Canvas(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(10.dp)
-    ) {
-        val centerY = size.height / 2f
-        drawLine(
-            color = Color.White.copy(alpha = 0.16f),
-            start = Offset(0f, centerY),
-            end = Offset(size.width, centerY),
-            strokeWidth = 2.2f
-        )
-
-        val activeColor = if (layer == RadarLayer.RAIN) Color(0xFF58E1ED) else Color(0xFFFFB65F)
-        val x = size.width * progress.coerceIn(0f, 1f)
-        drawLine(
-            color = activeColor.copy(alpha = 0.55f),
-            start = Offset(0f, centerY),
-            end = Offset(x, centerY),
-            strokeWidth = 2.6f
-        )
-        drawCircle(
-            color = Color.White,
-            radius = 4.3f,
-            center = Offset(x, centerY)
-        )
-        drawCircle(
-            color = activeColor.copy(alpha = 0.40f),
-            radius = 8.5f,
-            center = Offset(x, centerY)
-        )
     }
 }
 
 @Composable
 private fun RadarLegend(layer: RadarLayer) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = if (layer == RadarLayer.RAIN) "Light" else "Cool",
-            color = Color.White.copy(alpha = 0.48f),
-            fontSize = 7.sp
-        )
-        Canvas(
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 8.dp)
-                .height(4.dp)
-        ) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(if (layer == RadarLayer.RAIN) "Light" else "Cool", color = Color.White.copy(alpha = 0.48f), fontSize = 7.sp)
+        Canvas(Modifier.weight(1f).padding(horizontal = 8.dp).height(4.dp)) {
             val colors = if (layer == RadarLayer.RAIN) {
-                listOf(
-                    Color(0xFF1CBDF2),
-                    Color(0xFF20E096),
-                    Color(0xFFE8E44A),
-                    Color(0xFFFF8A33),
-                    Color(0xFFF33449)
-                )
+                listOf(Color(0xFF1CBDF2), Color(0xFF20E096), Color(0xFFE8E44A), Color(0xFFFF8A33), Color(0xFFF33449))
             } else {
-                listOf(
-                    Color(0xFF3979D9),
-                    Color(0xFF39CBE4),
-                    Color(0xFFF6DB55),
-                    Color(0xFFFF9A45),
-                    Color(0xFFE64A3C)
-                )
+                listOf(Color(0xFF3979D9), Color(0xFF39CBE4), Color(0xFFF6DB55), Color(0xFFFF9A45), Color(0xFFE64A3C))
             }
             drawRoundRect(
                 brush = Brush.horizontalGradient(colors),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f, 4f)
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f, 4f),
+                size = Size(size.width, size.height)
             )
         }
-        Text(
-            text = if (layer == RadarLayer.RAIN) "Heavy" else "Hot",
-            color = Color.White.copy(alpha = 0.48f),
-            fontSize = 7.sp
-        )
+        Text(if (layer == RadarLayer.RAIN) "Heavy" else "Hot", color = Color.White.copy(alpha = 0.48f), fontSize = 7.sp)
     }
 }
 
-@Composable
-private fun RadarMapCanvas(
-    progress: Float,
-    drift: Float,
-    layer: RadarLayer,
-    modifier: Modifier = Modifier
-) {
-    val labelPaint = remember {
-        Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = android.graphics.Color.argb(205, 232, 244, 248)
-            textSize = 22f
-            typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
-        }
-    }
-    val secondaryLabelPaint = remember {
-        Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = android.graphics.Color.argb(155, 210, 228, 234)
-            textSize = 17f
-            typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL)
-        }
-    }
-
-    Canvas(modifier = modifier) {
-        drawMapBase()
-        drawDistrictShapes()
-        drawRiverNetwork()
-        drawRoadNetwork()
-        drawRadarWeather(progress = progress, drift = drift, layer = layer)
-        drawRadarSweep(progress)
-        drawLocationMarker()
-        drawMapLabels(labelPaint, secondaryLabelPaint)
-        drawMapVignette()
-    }
+private fun formatRadarTime(epochSeconds: Long, timeZoneId: String, languageCode: String): String {
+    val locale = if (languageCode == "hi") Locale("hi", "IN") else Locale.ENGLISH
+    val zone = runCatching { ZoneId.of(timeZoneId) }.getOrDefault(ZoneId.systemDefault())
+    return Instant.ofEpochSecond(epochSeconds)
+        .atZone(zone)
+        .format(DateTimeFormatter.ofPattern("EEE • h:mm a", locale))
 }
 
-private fun DrawScope.drawMapBase() {
-    drawRect(
-        brush = Brush.verticalGradient(
-            0f to Color(0xFF102A32),
-            0.48f to Color(0xFF14343B),
-            1f to Color(0xFF0B222B)
-        )
-    )
-
-    repeat(9) { index ->
-        val y = size.height * (0.06f + index * 0.115f)
-        drawLine(
-            color = Color.White.copy(alpha = 0.025f),
-            start = Offset(0f, y),
-            end = Offset(size.width, y - size.height * 0.05f),
-            strokeWidth = 1f
-        )
-    }
-}
-
-private fun DrawScope.drawDistrictShapes() {
-    val regions = listOf(
-        listOf(0.00f to 0.05f, 0.32f to 0.01f, 0.42f to 0.22f, 0.24f to 0.36f, 0.00f to 0.28f),
-        listOf(0.42f to 0.02f, 0.82f to 0.03f, 0.96f to 0.25f, 0.65f to 0.34f, 0.43f to 0.22f),
-        listOf(0.00f to 0.30f, 0.24f to 0.37f, 0.36f to 0.62f, 0.08f to 0.69f, 0.00f to 0.58f),
-        listOf(0.25f to 0.37f, 0.65f to 0.34f, 0.71f to 0.64f, 0.37f to 0.63f),
-        listOf(0.66f to 0.35f, 0.98f to 0.27f, 1.00f to 0.70f, 0.72f to 0.64f),
-        listOf(0.08f to 0.70f, 0.37f to 0.64f, 0.55f to 1.00f, 0.00f to 1.00f),
-        listOf(0.38f to 0.65f, 0.72f to 0.65f, 1.00f to 0.72f, 1.00f to 1.00f, 0.55f to 1.00f)
-    )
-
-    regions.forEachIndexed { index, points ->
-        val path = Path().apply {
-            points.forEachIndexed { pointIndex, point ->
-                val p = Offset(size.width * point.first, size.height * point.second)
-                if (pointIndex == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
-            }
-            close()
-        }
-        drawPath(
-            path = path,
-            color = if (index % 2 == 0) Color(0xFF173B3C) else Color(0xFF123536)
-        )
-        drawPath(
-            path = path,
-            color = Color.White.copy(alpha = 0.07f),
-            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.2f)
-        )
-    }
-}
-
-private fun DrawScope.drawRiverNetwork() {
-    val mainRiver = Path().apply {
-        moveTo(size.width * 0.02f, size.height * 0.42f)
-        cubicTo(
-            size.width * 0.25f, size.height * 0.36f,
-            size.width * 0.38f, size.height * 0.56f,
-            size.width * 0.57f, size.height * 0.50f
-        )
-        cubicTo(
-            size.width * 0.73f, size.height * 0.45f,
-            size.width * 0.78f, size.height * 0.57f,
-            size.width * 1.02f, size.height * 0.53f
-        )
-    }
-    drawPath(
-        path = mainRiver,
-        color = Color(0xFF56BBD0).copy(alpha = 0.40f),
-        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 5.5f)
-    )
-    drawPath(
-        path = mainRiver,
-        color = Color(0xFF9CDDEA).copy(alpha = 0.32f),
-        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5f)
-    )
-
-    repeat(3) { index ->
-        val tributary = Path().apply {
-            moveTo(size.width * (0.18f + index * 0.27f), 0f)
-            cubicTo(
-                size.width * (0.17f + index * 0.25f), size.height * 0.22f,
-                size.width * (0.28f + index * 0.18f), size.height * 0.35f,
-                size.width * (0.31f + index * 0.18f), size.height * 0.48f
-            )
-        }
-        drawPath(
-            tributary,
-            color = Color(0xFF4AA9BE).copy(alpha = 0.22f),
-            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.2f)
-        )
-    }
-}
-
-private fun DrawScope.drawRoadNetwork() {
-    val roads = listOf(
-        listOf(0.05f to 0.82f, 0.28f to 0.67f, 0.50f to 0.55f, 0.78f to 0.41f, 1.0f to 0.31f),
-        listOf(0.10f to 0.18f, 0.30f to 0.31f, 0.52f to 0.52f, 0.70f to 0.79f, 0.84f to 1.0f),
-        listOf(0.00f to 0.59f, 0.25f to 0.55f, 0.50f to 0.52f, 0.78f to 0.57f, 1.0f to 0.64f),
-        listOf(0.35f to 0.00f, 0.40f to 0.25f, 0.51f to 0.52f, 0.48f to 0.79f, 0.43f to 1.0f)
-    )
-
-    roads.forEachIndexed { index, points ->
-        val path = Path().apply {
-            points.forEachIndexed { pointIndex, point ->
-                val x = size.width * point.first
-                val y = size.height * point.second
-                if (pointIndex == 0) moveTo(x, y) else lineTo(x, y)
-            }
-        }
-        drawPath(
-            path,
-            color = if (index == 0) Color(0xFFF3B45B).copy(alpha = 0.32f) else Color.White.copy(alpha = 0.16f),
-            style = androidx.compose.ui.graphics.drawscope.Stroke(width = if (index == 0) 2.4f else 1.3f)
-        )
-    }
-}
-
-private fun DrawScope.drawRadarWeather(progress: Float, drift: Float, layer: RadarLayer) {
-    if (layer == RadarLayer.TEMPERATURE) {
-        drawTemperatureField(progress)
-        return
-    }
-
-    val shiftX = sin(drift * 6.28318f) * size.width * 0.035f
-    val shiftY = cos(drift * 6.28318f) * size.height * 0.018f
-
-    drawRainCell(
-        center = Offset(size.width * 0.20f + shiftX, size.height * 0.28f + shiftY),
-        radius = size.width * 0.28f,
-        strength = 0.72f
-    )
-    drawRainCell(
-        center = Offset(size.width * 0.72f + shiftX * 0.5f, size.height * 0.34f - shiftY),
-        radius = size.width * 0.32f,
-        strength = 1f
-    )
-    drawRainCell(
-        center = Offset(size.width * 0.54f - shiftX, size.height * 0.73f + shiftY * 0.4f),
-        radius = size.width * 0.30f,
-        strength = 0.82f
-    )
-
-    repeat(7) { index ->
-        val phase = progress * 6.28318f + index * 0.9f
-        val center = Offset(
-            size.width * (0.14f + ((index * 0.137f) % 0.78f)) + sin(phase) * 12f,
-            size.height * (0.16f + ((index * 0.193f) % 0.70f)) + cos(phase) * 9f
-        )
-        drawCircle(
-            color = Color(0xFF28D995).copy(alpha = 0.16f),
-            radius = size.width * (0.055f + (index % 3) * 0.018f),
-            center = center
-        )
-    }
-}
-
-private fun DrawScope.drawRainCell(center: Offset, radius: Float, strength: Float) {
-    drawCircle(
-        brush = Brush.radialGradient(
-            colors = listOf(
-                Color(0xFFF03A44).copy(alpha = 0.66f * strength),
-                Color(0xFFFF9D32).copy(alpha = 0.60f * strength),
-                Color(0xFFE7DF43).copy(alpha = 0.52f * strength),
-                Color(0xFF21D88D).copy(alpha = 0.46f * strength),
-                Color(0xFF28A8EC).copy(alpha = 0.28f * strength),
-                Color.Transparent
-            ),
-            center = center,
-            radius = radius
-        ),
-        radius = radius,
-        center = center
-    )
-}
-
-private fun DrawScope.drawTemperatureField(progress: Float) {
-    val wobble = sin(progress * 6.28318f) * size.width * 0.02f
-    drawCircle(
-        brush = Brush.radialGradient(
-            colors = listOf(Color(0xFFE95042).copy(alpha = 0.62f), Color(0xFFF7A647).copy(alpha = 0.32f), Color.Transparent),
-            center = Offset(size.width * 0.68f + wobble, size.height * 0.36f),
-            radius = size.width * 0.52f
-        ),
-        radius = size.width * 0.52f,
-        center = Offset(size.width * 0.68f + wobble, size.height * 0.36f)
-    )
-    drawCircle(
-        brush = Brush.radialGradient(
-            colors = listOf(Color(0xFF3A85DB).copy(alpha = 0.56f), Color(0xFF38C7D8).copy(alpha = 0.26f), Color.Transparent),
-            center = Offset(size.width * 0.18f - wobble, size.height * 0.68f),
-            radius = size.width * 0.48f
-        ),
-        radius = size.width * 0.48f,
-        center = Offset(size.width * 0.18f - wobble, size.height * 0.68f)
-    )
-}
-
-private fun DrawScope.drawRadarSweep(progress: Float) {
-    val center = Offset(size.width * 0.50f, size.height * 0.52f)
-    val maxRadius = size.width * 0.58f
-    repeat(3) { index ->
-        val local = (progress + index * 0.32f) % 1f
-        drawCircle(
-            color = Color(0xFF8EEAF2).copy(alpha = (1f - local) * 0.12f),
-            radius = maxRadius * local,
-            center = center,
-            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.2f)
-        )
-    }
-}
-
-private fun DrawScope.drawLocationMarker() {
-    val center = Offset(size.width * 0.50f, size.height * 0.52f)
-    drawCircle(Color(0xFF5DEAF3).copy(alpha = 0.22f), radius = 18f, center = center)
-    drawCircle(Color(0xFF5DEAF3), radius = 6.5f, center = center)
-    drawCircle(Color.White, radius = 2.5f, center = center)
-}
-
-private fun DrawScope.drawMapLabels(primary: Paint, secondary: Paint) {
-    val canvas = drawContext.canvas.nativeCanvas
-    canvas.drawText("Chandauli", size.width * 0.52f, size.height * 0.50f, primary)
-    canvas.drawText("Varanasi", size.width * 0.23f, size.height * 0.33f, secondary)
-    canvas.drawText("Mughalsarai", size.width * 0.61f, size.height * 0.45f, secondary)
-    canvas.drawText("Mirzapur", size.width * 0.18f, size.height * 0.72f, secondary)
-    canvas.drawText("Ghazipur", size.width * 0.72f, size.height * 0.18f, secondary)
-    canvas.drawText("Sonbhadra", size.width * 0.56f, size.height * 0.83f, secondary)
-}
-
-private fun DrawScope.drawMapVignette() {
-    drawRect(
-        brush = Brush.verticalGradient(
-            colors = listOf(Color(0x4A031018), Color.Transparent, Color.Transparent, Color(0x79020B10))
-        )
-    )
-    drawRect(
-        brush = Brush.horizontalGradient(
-            colors = listOf(Color(0x52020D13), Color.Transparent, Color.Transparent, Color(0x3D020D13))
-        )
-    )
-}
-
-@Preview(showBackground = true, widthDp = 390, heightDp = 844)
-@Composable
-private fun RadarScreenPreview() {
-    RealWeather365Theme {
-        RadarScreen(location = "Chandauli", onBack = {})
-    }
+private fun formatRadarClock(epochSeconds: Long, timeZoneId: String, languageCode: String): String {
+    val locale = if (languageCode == "hi") Locale("hi", "IN") else Locale.ENGLISH
+    val zone = runCatching { ZoneId.of(timeZoneId) }.getOrDefault(ZoneId.systemDefault())
+    return Instant.ofEpochSecond(epochSeconds)
+        .atZone(zone)
+        .format(DateTimeFormatter.ofPattern("h:mm a", locale))
 }

@@ -116,7 +116,7 @@ class MainActivity : ComponentActivity() {
 
                 when (destination) {
                     "radar" -> RadarScreen(
-                        location = uiState.value.location,
+                        state = displayedHomeState,
                         onBack = { destination = "weather" }
                     )
 
