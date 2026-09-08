@@ -12,6 +12,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tridev.realweather365.ui.forecast.Forecast24HourScreen
 import com.tridev.realweather365.ui.home.WeatherHomeScreen
 import com.tridev.realweather365.ui.home.WeatherHomeViewModel
 import com.tridev.realweather365.ui.radar.RadarScreen
@@ -33,7 +34,7 @@ class MainActivity : ComponentActivity() {
             RealWeather365Theme {
                 val viewModel: WeatherHomeViewModel = viewModel()
                 val uiState = viewModel.uiState.collectAsStateWithLifecycle()
-                var destination by rememberSaveable { mutableStateOf("radar") }
+                var destination by rememberSaveable { mutableStateOf("forecast24") }
 
                 BackHandler(enabled = destination != "weather") {
                     destination = "weather"
@@ -41,6 +42,11 @@ class MainActivity : ComponentActivity() {
 
                 when (destination) {
                     "radar" -> RadarScreen(
+                        location = uiState.value.location,
+                        onBack = { destination = "weather" }
+                    )
+
+                    "forecast24" -> Forecast24HourScreen(
                         location = uiState.value.location,
                         onBack = { destination = "weather" }
                     )
