@@ -93,15 +93,11 @@ fun WeatherHomeScreen(
             }
         }
 
-        RealCloudSystem(
-            cloudCover = state.cloudCover,
-            windSpeed = state.windSpeed,
-            windDirection = state.windDirection,
-            condition = state.condition,
+        ScientificVolumetricCloudSystem(
+            state = state,
             scene = visualScene,
             solar = solar,
             moon = moon,
-            animationLevel = state.animationLevel,
             modifier = Modifier.fillMaxSize()
         )
 

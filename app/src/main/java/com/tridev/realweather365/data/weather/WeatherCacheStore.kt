@@ -90,6 +90,11 @@ private fun LiveWeatherSnapshot.toJson(): JSONObject = JSONObject().apply {
     put("wind_direction", windDirection)
     put("wind_gusts", windGusts)
     put("cloud_cover", cloudCover)
+    put("cloud_cover_low", cloudCoverLow)
+    put("cloud_cover_mid", cloudCoverMid)
+    put("cloud_cover_high", cloudCoverHigh)
+    put("direct_radiation", directRadiation)
+    put("diffuse_radiation", diffuseRadiation)
     put("dew_point", dewPoint)
     putNullable("visibility_km", visibilityKm)
     putNullable("aqi", aqi)
@@ -153,6 +158,11 @@ private fun JSONObject.toSnapshot(): LiveWeatherSnapshot {
         windDirection = optInt("wind_direction"),
         windGusts = optInt("wind_gusts"),
         cloudCover = optInt("cloud_cover"),
+        cloudCoverLow = optInt("cloud_cover_low"),
+        cloudCoverMid = optInt("cloud_cover_mid"),
+        cloudCoverHigh = optInt("cloud_cover_high"),
+        directRadiation = optDouble("direct_radiation", 0.0),
+        diffuseRadiation = optDouble("diffuse_radiation", 0.0),
         dewPoint = optInt("dew_point"),
         visibilityKm = nullableDouble("visibility_km"),
         aqi = nullableInt("aqi"),
