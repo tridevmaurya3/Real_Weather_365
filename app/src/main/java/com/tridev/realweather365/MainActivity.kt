@@ -136,7 +136,7 @@ class MainActivity : ComponentActivity() {
                     )
 
                     "severeAlert" -> SevereWeatherAlertScreen(
-                        location = uiState.value.location,
+                        state = displayedHomeState,
                         onBack = { destination = "weather" }
                     )
 

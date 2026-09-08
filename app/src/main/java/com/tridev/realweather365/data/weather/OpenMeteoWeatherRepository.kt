@@ -20,7 +20,12 @@ data class LiveHourData(
     val temperature: Int,
     val weatherCode: Int,
     val rainChance: Int,
-    val isDay: Boolean
+    val isDay: Boolean,
+    val windSpeed: Int = 0,
+    val windGusts: Int = 0,
+    val precipitationMm: Double = 0.0,
+    val snowfallCm: Double = 0.0,
+    val cape: Double? = null
 )
 
 data class LiveDayData(
@@ -92,7 +97,7 @@ class OpenMeteoWeatherRepository {
             append("?latitude=${location.latitude}")
             append("&longitude=${location.longitude}")
             append("&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,cloud_cover,dew_point_2m,is_day")
-            append("&hourly=temperature_2m,weather_code,precipitation_probability,is_day,visibility")
+            append("&hourly=temperature_2m,weather_code,precipitation_probability,precipitation,snowfall,wind_speed_10m,wind_gusts_10m,cape,is_day,visibility")
             append("&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,sunrise,sunset")
             append("&forecast_days=10")
             append("&timezone=auto")
@@ -109,6 +114,11 @@ class OpenMeteoWeatherRepository {
         val hourlyTemps = hourly.getJSONArray("temperature_2m")
         val hourlyCodes = hourly.getJSONArray("weather_code")
         val hourlyRain = hourly.getJSONArray("precipitation_probability")
+        val hourlyPrecip = hourly.optJSONArray("precipitation")
+        val hourlySnow = hourly.optJSONArray("snowfall")
+        val hourlyWind = hourly.optJSONArray("wind_speed_10m")
+        val hourlyGusts = hourly.optJSONArray("wind_gusts_10m")
+        val hourlyCape = hourly.optJSONArray("cape")
         val hourlyIsDay = hourly.getJSONArray("is_day")
         val hourlyVisibility = hourly.optJSONArray("visibility")
 
@@ -131,7 +141,12 @@ class OpenMeteoWeatherRepository {
                         temperature = hourlyTemps.numberAt(index)?.roundToInt() ?: 0,
                         weatherCode = hourlyCodes.optInt(index, 0),
                         rainChance = hourlyRain.numberAt(index)?.roundToInt() ?: 0,
-                        isDay = hourlyIsDay.optInt(index, 0) == 1
+                        isDay = hourlyIsDay.optInt(index, 0) == 1,
+                        windSpeed = hourlyWind?.numberAt(index)?.roundToInt() ?: 0,
+                        windGusts = hourlyGusts?.numberAt(index)?.roundToInt() ?: 0,
+                        precipitationMm = hourlyPrecip?.numberAt(index) ?: 0.0,
+                        snowfallCm = hourlySnow?.numberAt(index) ?: 0.0,
+                        cape = hourlyCape?.numberAt(index)
                     )
                 )
             }
@@ -224,7 +239,7 @@ class OpenMeteoWeatherRepository {
             readTimeout = 12_000
             requestMethod = "GET"
             setRequestProperty("Accept", "application/json")
-            setRequestProperty("User-Agent", "RealWeather365/0.1")
+            setRequestProperty("User-Agent", "RealWeather365/0.25")
         }
         return try {
             val code = connection.responseCode

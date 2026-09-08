@@ -95,7 +95,9 @@ fun WeatherHomeUiState.applyDisplayPreferences(preferences: WeatherPreferences):
     val displayedHourly24: List<LiveHourData> = hourly24.map { hour ->
         hour.copy(
             label = translateHourLabel(hour.label, language),
-            temperature = convertTemperature(hour.temperature, unit)
+            temperature = convertTemperature(hour.temperature, unit),
+            windSpeed = convertSpeed(hour.windSpeed, unit),
+            windGusts = convertSpeed(hour.windGusts, unit)
         )
     }
     val displayedDaily10: List<LiveDayData> = daily10.map { day ->

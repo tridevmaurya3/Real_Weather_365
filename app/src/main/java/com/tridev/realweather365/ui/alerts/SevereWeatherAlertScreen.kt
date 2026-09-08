@@ -1,6 +1,5 @@
 package com.tridev.realweather365.ui.alerts
 
-import android.graphics.Paint
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -34,7 +33,6 @@ import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.FlashOn
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LocationOn
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Icon
@@ -42,38 +40,40 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tridev.realweather365.ui.home.WeatherHomeUiState
 import com.tridev.realweather365.ui.theme.RealWeather365Theme
-import kotlin.math.sin
+import java.util.Locale
+import kotlin.math.roundToInt
 
 @Composable
 fun SevereWeatherAlertScreen(
-    location: String,
+    state: WeatherHomeUiState,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val transition = rememberInfiniteTransition(label = "alert-pulse")
+    val assessment = remember(state) { SevereWeatherRiskEngine.assess(state) }
+    val transition = rememberInfiniteTransition(label = "risk-pulse")
     val pulse by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1600, easing = LinearEasing),
+            animation = tween(1800, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "alert-pulse-progress"
+        label = "risk-pulse-progress"
     )
 
     Box(
@@ -91,7 +91,7 @@ fun SevereWeatherAlertScreen(
             )
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            AlertHeader(location = location, onBack = onBack)
+            AlertHeader(location = state.location, onBack = onBack)
 
             Column(
                 modifier = Modifier
@@ -100,17 +100,19 @@ fun SevereWeatherAlertScreen(
                     .padding(horizontal = 12.dp)
             ) {
                 Spacer(modifier = Modifier.height(12.dp))
-                SevereAlertCard()
+                SevereRiskCard(state = state, assessment = assessment)
                 Spacer(modifier = Modifier.height(10.dp))
-                AlertTimingCard()
+                AlertTimingCard(assessment = assessment)
                 Spacer(modifier = Modifier.height(10.dp))
-                AlertMapCard(location = location, pulse = pulse)
+                RiskMetricsCard(state = state, assessment = assessment)
                 Spacer(modifier = Modifier.height(10.dp))
-                StaySafeCard()
+                AlertMapCard(state = state, assessment = assessment, pulse = pulse)
+                Spacer(modifier = Modifier.height(10.dp))
+                StaySafeCard(assessment = assessment)
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            AlertFooter()
+            AlertFooter(state = state, assessment = assessment)
         }
     }
 }
@@ -118,23 +120,16 @@ fun SevereWeatherAlertScreen(
 @Composable
 private fun AlertHeader(location: String, onBack: () -> Unit) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .statusBarsPadding(),
+        modifier = Modifier.fillMaxWidth().statusBarsPadding(),
         color = Color(0xF2071720),
         tonalElevation = 0.dp
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(58.dp)
-                .padding(horizontal = 8.dp),
+            modifier = Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clickable(onClick = onBack),
+                modifier = Modifier.size(40.dp).clickable(onClick = onBack),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -164,32 +159,37 @@ private fun AlertHeader(location: String, onBack: () -> Unit) {
                     )
                 }
                 Text(
-                    text = "Severe Weather Alert",
+                    text = "Severe Weather Intelligence",
                     color = Color.White.copy(alpha = 0.58f),
                     fontSize = 9.sp,
-                    letterSpacing = 0.4.sp
+                    letterSpacing = 0.35.sp
                 )
             }
 
-            Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Outlined.MoreVert,
-                    contentDescription = "More",
-                    tint = Color.White.copy(alpha = 0.86f),
-                    modifier = Modifier.size(21.dp)
-                )
-            }
+            Spacer(modifier = Modifier.size(40.dp))
         }
     }
 }
 
 @Composable
-private fun SevereAlertCard() {
+private fun SevereRiskCard(
+    state: WeatherHomeUiState,
+    assessment: SevereWeatherAssessment
+) {
+    val accent = riskColor(assessment.level)
+    val base = when (assessment.level) {
+        SevereRiskLevel.SEVERE -> Color(0xFF5F1715)
+        SevereRiskLevel.HIGH -> Color(0xFF542019)
+        SevereRiskLevel.MODERATE -> Color(0xFF493019)
+        SevereRiskLevel.ADVISORY -> Color(0xFF243B31)
+        SevereRiskLevel.NONE -> Color(0xFF113A34)
+    }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        color = Color(0xFF5B1C14),
-        border = BorderStroke(0.8.dp, Color(0xFFFF8065).copy(alpha = 0.55f)),
+        color = base,
+        border = BorderStroke(0.9.dp, accent.copy(alpha = 0.58f)),
         tonalElevation = 0.dp
     ) {
         Column(
@@ -198,16 +198,16 @@ private fun SevereAlertCard() {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
-                    modifier = Modifier.size(42.dp),
+                    modifier = Modifier.size(44.dp),
                     shape = CircleShape,
-                    color = Color(0x33FF8C67)
+                    color = accent.copy(alpha = 0.16f)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = Icons.Outlined.WarningAmber,
+                            imageVector = if (assessment.level == SevereRiskLevel.NONE) Icons.Outlined.Shield else Icons.Outlined.WarningAmber,
                             contentDescription = null,
-                            tint = Color(0xFFFFB26E),
-                            modifier = Modifier.size(24.dp)
+                            tint = accent,
+                            modifier = Modifier.size(25.dp)
                         )
                     }
                 }
@@ -217,28 +217,28 @@ private fun SevereAlertCard() {
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Severe Thunderstorm",
+                            text = assessment.title,
                             color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f)
                         )
-                        Spacer(modifier = Modifier.weight(1f))
                         Surface(
                             shape = RoundedCornerShape(50),
-                            color = Color(0xFFFF603D)
+                            color = accent.copy(alpha = 0.92f)
                         ) {
                             Text(
-                                text = "ACTIVE",
-                                color = Color.White,
+                                text = assessment.statusLabel,
+                                color = Color(0xFF07151B),
                                 fontSize = 8.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.ExtraBold,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
                     }
                     Text(
-                        text = "Heavy rain, strong winds and lightning expected in the selected area.",
-                        color = Color.White.copy(alpha = 0.80f),
+                        text = assessment.summary,
+                        color = Color.White.copy(alpha = 0.79f),
                         fontSize = 10.sp,
                         lineHeight = 14.sp
                     )
@@ -248,7 +248,7 @@ private fun SevereAlertCard() {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0x32000000),
+                color = Color(0x30000000),
                 border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.10f))
             ) {
                 Row(
@@ -263,14 +263,14 @@ private fun SevereAlertCard() {
                     )
                     Spacer(modifier = Modifier.width(7.dp))
                     Text(
-                        text = "Lightning risk: High",
+                        text = "Lightning: ${assessment.lightningLabel}",
                         color = Color.White,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     Text(
-                        text = "Wind 45–65 km/h",
+                        text = "Gust ${assessment.peakGust} ${state.windUnit}",
                         color = Color.White.copy(alpha = 0.70f),
                         fontSize = 9.sp
                     )
@@ -281,7 +281,7 @@ private fun SevereAlertCard() {
 }
 
 @Composable
-private fun AlertTimingCard() {
+private fun AlertTimingCard(assessment: SevereWeatherAssessment) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -302,14 +302,14 @@ private fun AlertTimingCard() {
             Spacer(modifier = Modifier.width(9.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Expected window",
+                    text = "Forecast risk window",
                     color = Color.White.copy(alpha = 0.60f),
                     fontSize = 8.sp
                 )
                 Text(
-                    text = "Today, 3:00 PM – 7:00 PM",
+                    text = assessment.windowLabel,
                     color = Color.White,
-                    fontSize = 11.sp,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -320,8 +320,8 @@ private fun AlertTimingCard() {
                     fontSize = 8.sp
                 )
                 Text(
-                    text = "Moderate to High",
-                    color = Color(0xFFFFB263),
+                    text = assessment.severityLabel,
+                    color = riskColor(assessment.level),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -331,7 +331,95 @@ private fun AlertTimingCard() {
 }
 
 @Composable
-private fun AlertMapCard(location: String, pulse: Float) {
+private fun RiskMetricsCard(
+    state: WeatherHomeUiState,
+    assessment: SevereWeatherAssessment
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xA40B2029),
+        border = BorderStroke(0.6.dp, Color.White.copy(alpha = 0.12f)),
+        tonalElevation = 0.dp
+    ) {
+        Column(modifier = Modifier.padding(11.dp)) {
+            Text(
+                text = "Forecast risk inputs • next 24h",
+                color = Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                RiskMetric(
+                    label = "Peak gust",
+                    value = "${assessment.peakGust} ${state.windUnit}",
+                    hint = assessment.peakHourLabel,
+                    modifier = Modifier.weight(1f)
+                )
+                RiskMetric(
+                    label = "Rain chance",
+                    value = "${assessment.peakRainChance}%",
+                    hint = "maximum",
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            Spacer(modifier = Modifier.height(7.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                RiskMetric(
+                    label = "Precipitation",
+                    value = "${formatOneDecimal(assessment.peakPrecipitationMm)} mm/h",
+                    hint = "peak hourly",
+                    modifier = Modifier.weight(1f)
+                )
+                RiskMetric(
+                    label = "CAPE",
+                    value = assessment.peakCape?.let { "${it.roundToInt()} J/kg" } ?: "--",
+                    hint = if (assessment.peakSnowfallCm > 0.0) "Snow ${formatOneDecimal(assessment.peakSnowfallCm)} cm/h" else "instability",
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RiskMetric(
+    label: String,
+    value: String,
+    hint: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.height(68.dp),
+        shape = RoundedCornerShape(13.dp),
+        color = Color(0x73122630),
+        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f))
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(label, color = Color.White.copy(alpha = 0.55f), fontSize = 8.sp)
+            Text(value, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Text(hint, color = Color.White.copy(alpha = 0.42f), fontSize = 7.sp)
+        }
+    }
+}
+
+@Composable
+private fun AlertMapCard(
+    state: WeatherHomeUiState,
+    assessment: SevereWeatherAssessment,
+    pulse: Float
+) {
+    val accent = riskColor(assessment.level)
+    val radiusLabel = if (state.distanceUnit == "mi") {
+        "${(assessment.riskRadiusKm * 0.621371).roundToInt()} mi"
+    } else {
+        "${assessment.riskRadiusKm} km"
+    }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -341,151 +429,113 @@ private fun AlertMapCard(location: String, pulse: Float) {
     ) {
         Column {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Affected area",
+                    text = "Estimated local impact zone",
                     color = Color.White,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
-                    text = "LIVE RISK MAP",
-                    color = Color(0xFFFF9472),
+                    text = if (assessment.riskRadiusKm > 0) "~$radiusLabel" else "LOW RISK",
+                    color = accent,
                     fontSize = 8.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
 
-            Canvas(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(220.dp)
+            Box(
+                modifier = Modifier.fillMaxWidth().height(205.dp),
+                contentAlignment = Alignment.Center
             ) {
-                val w = size.width
-                val h = size.height
-
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        listOf(Color(0xFF102B34), Color(0xFF0A2029), Color(0xFF081922))
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            listOf(Color(0xFF102B34), Color(0xFF0A2029), Color(0xFF081922))
+                        )
                     )
-                )
+                    repeat(6) { index ->
+                        val y = size.height * (0.10f + index * 0.16f)
+                        drawLine(
+                            color = Color.White.copy(alpha = 0.035f),
+                            start = Offset(0f, y),
+                            end = Offset(size.width, y),
+                            strokeWidth = 1f
+                        )
+                    }
+                    repeat(6) { index ->
+                        val x = size.width * (0.08f + index * 0.17f)
+                        drawLine(
+                            color = Color.White.copy(alpha = 0.03f),
+                            start = Offset(x, 0f),
+                            end = Offset(x, size.height),
+                            strokeWidth = 1f
+                        )
+                    }
 
-                repeat(6) { index ->
-                    val y = h * (0.12f + index * 0.15f)
-                    drawLine(
-                        color = Color.White.copy(alpha = 0.035f),
-                        start = Offset(0f, y),
-                        end = Offset(w, y),
-                        strokeWidth = 1f
-                    )
-                }
-                repeat(5) { index ->
-                    val x = w * (0.12f + index * 0.19f)
-                    drawLine(
-                        color = Color.White.copy(alpha = 0.03f),
-                        start = Offset(x, 0f),
-                        end = Offset(x, h),
-                        strokeWidth = 1f
-                    )
-                }
-
-                val riskCenter = Offset(w * 0.55f, h * 0.48f)
-                val pulseRadius = 42f + pulse * 32f
-                drawCircle(
-                    color = Color(0xFFFF542F).copy(alpha = (0.23f * (1f - pulse)).coerceAtLeast(0.04f)),
-                    radius = pulseRadius,
-                    center = riskCenter
-                )
-                drawCircle(
-                    color = Color(0xFFFF7A3C).copy(alpha = 0.26f),
-                    radius = 54f,
-                    center = riskCenter
-                )
-                drawCircle(
-                    color = Color(0xFFFFC04E).copy(alpha = 0.20f),
-                    radius = 82f,
-                    center = riskCenter
-                )
-
-                val stormCells = listOf(
-                    Offset(w * 0.24f, h * 0.28f) to 28f,
-                    Offset(w * 0.39f, h * 0.36f) to 22f,
-                    Offset(w * 0.69f, h * 0.35f) to 34f,
-                    Offset(w * 0.77f, h * 0.61f) to 26f,
-                    Offset(w * 0.31f, h * 0.68f) to 30f
-                )
-                stormCells.forEachIndexed { index, pair ->
-                    val wave = 0.88f + 0.12f * sin((pulse + index * 0.17f) * 6.283f)
+                    val center = Offset(size.width / 2f, size.height / 2f)
+                    val baseRadius = when (assessment.level) {
+                        SevereRiskLevel.SEVERE -> size.minDimension * 0.38f
+                        SevereRiskLevel.HIGH -> size.minDimension * 0.32f
+                        SevereRiskLevel.MODERATE -> size.minDimension * 0.26f
+                        SevereRiskLevel.ADVISORY -> size.minDimension * 0.20f
+                        SevereRiskLevel.NONE -> size.minDimension * 0.12f
+                    }
+                    val pulseRadius = baseRadius * (1f + pulse * 0.18f)
+                    val pulseAlpha = if (assessment.level == SevereRiskLevel.NONE) 0.06f else (0.20f * (1f - pulse)).coerceAtLeast(0.03f)
+                    drawCircle(accent.copy(alpha = pulseAlpha), pulseRadius, center)
+                    drawCircle(accent.copy(alpha = 0.16f), baseRadius, center)
                     drawCircle(
-                        color = if (index % 2 == 0) Color(0xFFEF5A34).copy(alpha = 0.35f)
-                        else Color(0xFFFFB341).copy(alpha = 0.30f),
-                        radius = pair.second * wave,
-                        center = pair.first
+                        accent.copy(alpha = 0.45f),
+                        baseRadius,
+                        center,
+                        style = Stroke(width = 2f)
+                    )
+                    drawCircle(Color.White, 5.2f, center)
+                    drawCircle(Color(0xFF5DE6F2), 10f, center, style = Stroke(width = 2f))
+                }
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Spacer(modifier = Modifier.height(55.dp))
+                    Text(
+                        text = state.location,
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = String.format(
+                            Locale.US,
+                            "%.3f, %.3f",
+                            state.selectedLocation.latitude,
+                            state.selectedLocation.longitude
+                        ),
+                        color = Color.White.copy(alpha = 0.60f),
+                        fontSize = 8.sp
                     )
                 }
-
-                drawCircle(
-                    color = Color.White,
-                    radius = 5.3f,
-                    center = riskCenter
-                )
-                drawCircle(
-                    color = Color(0xFF5DE6F2),
-                    radius = 9.5f,
-                    center = riskCenter,
-                    style = Stroke(width = 2f)
-                )
-
-                val textPaint = Paint().apply {
-                    isAntiAlias = true
-                    color = android.graphics.Color.WHITE
-                    textSize = 23f
-                    textAlign = Paint.Align.CENTER
-                }
-                drawContext.canvas.nativeCanvas.drawText(location, riskCenter.x, riskCenter.y - 17f, textPaint)
-
-                val secondaryPaint = Paint().apply {
-                    isAntiAlias = true
-                    color = android.graphics.Color.argb(180, 220, 238, 242)
-                    textSize = 17f
-                    textAlign = Paint.Align.CENTER
-                }
-                drawContext.canvas.nativeCanvas.drawText("Varanasi", w * 0.25f, h * 0.18f, secondaryPaint)
-                drawContext.canvas.nativeCanvas.drawText("Mughalsarai", w * 0.28f, h * 0.55f, secondaryPaint)
-                drawContext.canvas.nativeCanvas.drawText("Ghazipur", w * 0.77f, h * 0.22f, secondaryPaint)
-                drawContext.canvas.nativeCanvas.drawText("Mirzapur", w * 0.68f, h * 0.78f, secondaryPaint)
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 9.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                RiskLegendDot(Color(0xFFFFC04E), "Moderate")
-                RiskLegendDot(Color(0xFFFF7A3C), "High")
-                RiskLegendDot(Color(0xFFFF542F), "Severe")
-            }
+            Text(
+                text = if (assessment.riskRadiusKm > 0) {
+                    "Model-based local radius estimate around the selected point • not an official warning polygon"
+                } else {
+                    "No local severe-risk radius is estimated from the current 24-hour forecast"
+                },
+                color = Color.White.copy(alpha = 0.52f),
+                fontSize = 8.sp,
+                lineHeight = 11.sp,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)
+            )
         }
     }
 }
 
 @Composable
-private fun RiskLegendDot(color: Color, label: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.size(7.dp).background(color, CircleShape))
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(text = label, color = Color.White.copy(alpha = 0.67f), fontSize = 8.sp)
-    }
-}
-
-@Composable
-private fun StaySafeCard() {
+private fun StaySafeCard(assessment: SevereWeatherAssessment) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
@@ -503,7 +553,7 @@ private fun StaySafeCard() {
                 )
                 Spacer(modifier = Modifier.width(7.dp))
                 Text(
-                    text = "Stay Safe",
+                    text = "Safety guidance",
                     color = Color.White,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
@@ -513,24 +563,18 @@ private fun StaySafeCard() {
             Spacer(modifier = Modifier.height(9.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                SafetyItem(
-                    icon = Icons.Outlined.Home,
-                    title = "Stay indoors",
-                    detail = "Avoid open areas",
-                    modifier = Modifier.weight(1f)
-                )
-                SafetyItem(
-                    icon = Icons.Outlined.FlashOn,
-                    title = "Lightning",
-                    detail = "Keep away from trees",
-                    modifier = Modifier.weight(1f)
-                )
-                SafetyItem(
-                    icon = Icons.Outlined.WarningAmber,
-                    title = "Travel",
-                    detail = "Avoid flooded roads",
-                    modifier = Modifier.weight(1f)
-                )
+                assessment.guidance.take(3).forEachIndexed { index, guidance ->
+                    SafetyItem(
+                        icon = when (index) {
+                            0 -> Icons.Outlined.Home
+                            1 -> Icons.Outlined.FlashOn
+                            else -> Icons.Outlined.WarningAmber
+                        },
+                        title = guidance.title,
+                        detail = guidance.detail,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
     }
@@ -544,13 +588,13 @@ private fun SafetyItem(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        modifier = modifier.height(82.dp),
+        modifier = modifier.height(96.dp),
         shape = RoundedCornerShape(13.dp),
         color = Color(0x73122630),
         border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f))
     ) {
         Column(
-            modifier = Modifier.padding(8.dp),
+            modifier = Modifier.padding(7.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -570,8 +614,8 @@ private fun SafetyItem(
             Text(
                 text = detail,
                 color = Color.White.copy(alpha = 0.55f),
-                fontSize = 7.sp,
-                lineHeight = 9.sp,
+                fontSize = 6.5.sp,
+                lineHeight = 8.5.sp,
                 textAlign = TextAlign.Center
             )
         }
@@ -579,44 +623,61 @@ private fun SafetyItem(
 }
 
 @Composable
-private fun AlertFooter() {
+private fun AlertFooter(
+    state: WeatherHomeUiState,
+    assessment: SevereWeatherAssessment
+) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding(),
+        modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
         color = Color(0xF4081821),
         border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.07f)),
         tonalElevation = 0.dp
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(7.dp)
-                    .background(Color(0xFFFF6545), CircleShape)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(7.dp)
+                        .background(if (assessment.offline) Color(0xFFFFB65F) else Color(0xFF55EAA5), CircleShape)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (assessment.offline) "Cached forecast risk" else "Forecast risk monitoring",
+                    color = Color.White.copy(alpha = 0.72f),
+                    fontSize = 8.sp
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = state.updatedAt,
+                    color = Color.White.copy(alpha = 0.42f),
+                    fontSize = 7.sp
+                )
+            }
             Text(
-                text = "Alert monitoring active",
-                color = Color.White.copy(alpha = 0.72f),
-                fontSize = 8.sp
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = "Updated moments ago",
-                color = Color.White.copy(alpha = 0.42f),
-                fontSize = 8.sp
+                text = assessment.sourceNote,
+                color = Color.White.copy(alpha = 0.40f),
+                fontSize = 7.sp,
+                lineHeight = 9.sp,
+                modifier = Modifier.padding(top = 3.dp)
             )
         }
     }
 }
 
+private fun riskColor(level: SevereRiskLevel): Color = when (level) {
+    SevereRiskLevel.SEVERE -> Color(0xFFFF5A42)
+    SevereRiskLevel.HIGH -> Color(0xFFFF8A4A)
+    SevereRiskLevel.MODERATE -> Color(0xFFFFC45A)
+    SevereRiskLevel.ADVISORY -> Color(0xFF8DE1A9)
+    SevereRiskLevel.NONE -> Color(0xFF64E2C2)
+}
+
+private fun formatOneDecimal(value: Double): String = String.format(Locale.US, "%.1f", value)
+
 @Preview(showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
 private fun SevereAlertPreview() {
     RealWeather365Theme {
-        SevereWeatherAlertScreen(location = "Chandauli", onBack = {})
+        SevereWeatherAlertScreen(state = WeatherHomeUiState(), onBack = {})
     }
 }

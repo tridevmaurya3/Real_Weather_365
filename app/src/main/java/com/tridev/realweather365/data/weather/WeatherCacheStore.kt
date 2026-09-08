@@ -114,6 +114,11 @@ private fun LiveWeatherSnapshot.toJson(): JSONObject = JSONObject().apply {
                     .put("weather_code", hour.weatherCode)
                     .put("rain_chance", hour.rainChance)
                     .put("is_day", hour.isDay)
+                    .put("wind_speed", hour.windSpeed)
+                    .put("wind_gusts", hour.windGusts)
+                    .put("precipitation_mm", hour.precipitationMm)
+                    .put("snowfall_cm", hour.snowfallCm)
+                    .putNullable("cape", hour.cape)
             )
         }
     })
@@ -172,7 +177,12 @@ private fun JSONObject.toSnapshot(): LiveWeatherSnapshot {
                         temperature = item.optInt("temperature"),
                         weatherCode = item.optInt("weather_code"),
                         rainChance = item.optInt("rain_chance"),
-                        isDay = item.optBoolean("is_day", true)
+                        isDay = item.optBoolean("is_day", true),
+                        windSpeed = item.optInt("wind_speed"),
+                        windGusts = item.optInt("wind_gusts"),
+                        precipitationMm = item.optDouble("precipitation_mm", 0.0),
+                        snowfallCm = item.optDouble("snowfall_cm", 0.0),
+                        cape = item.nullableDouble("cape")
                     )
                 )
             }
