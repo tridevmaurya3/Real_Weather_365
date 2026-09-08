@@ -79,7 +79,11 @@ fun WeatherHomeScreen(
                     WeatherScene.SUNNY,
                     WeatherScene.SUNRISE -> AstronomicalSkyEnvironment(
                         solar = solar,
-                        cloudCover = state.cloudCover
+                        cloudCover = state.cloudCover,
+                        humidity = state.humidity,
+                        visibilityKm = state.visibilityKm,
+                        directRadiation = state.directRadiation,
+                        diffuseRadiation = state.diffuseRadiation
                     )
                     WeatherScene.RAIN -> RainEnvironment(animationLevel = state.animationLevel)
                     WeatherScene.THUNDERSTORM -> ThunderstormEnvironment(animationLevel = state.animationLevel)
