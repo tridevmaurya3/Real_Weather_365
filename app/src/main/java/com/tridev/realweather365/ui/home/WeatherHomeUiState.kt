@@ -14,7 +14,7 @@ data class WeatherMetric(
 
 data class WeatherHomeUiState(
     val location: String = "Chandauli",
-    val updatedAt: String = "Live • Updated now",
+    val updatedAt: String = "Live • 7:15 AM",
     val temperature: Int = 24,
     val condition: String = "Sunny",
     val feelsLike: Int = 26,
@@ -25,13 +25,13 @@ data class WeatherHomeUiState(
         HourForecast("9 AM", 25),
         HourForecast("11 AM", 26),
         HourForecast("1 PM", 27),
-        HourForecast("3 PM", 28),
-        HourForecast("5 PM", 27)
+        HourForecast("3 PM", 27),
+        HourForecast("5 PM", 25)
     ),
     val metrics: List<WeatherMetric> = listOf(
         WeatherMetric("AQI", "42", "Good"),
         WeatherMetric("Wind", "12 km/h", "NE"),
-        WeatherMetric("Humidity", "48%", "Comfortable"),
+        WeatherMetric("Humidity", "48%", "Comfort"),
         WeatherMetric("Pressure", "1008", "hPa")
     )
 )

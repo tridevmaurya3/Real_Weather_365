@@ -10,6 +10,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -21,138 +22,200 @@ import kotlin.math.sin
 
 @Composable
 fun SunnyEnvironment(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "sunny-environment")
+    val transition = rememberInfiniteTransition(label = "sunny-reference-environment")
     val cloudShift = transition.animateFloat(
-        initialValue = -0.08f,
-        targetValue = 1.08f,
+        initialValue = 0f,
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 65000, easing = LinearEasing),
+            animation = tween(durationMillis = 82000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "cloud-shift"
+        label = "cloud-drift"
     )
     val shimmer = transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 5200, easing = LinearEasing),
+            animation = tween(durationMillis = 5600, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "water-shimmer"
+        label = "lake-shimmer"
     )
 
     Canvas(modifier = modifier.fillMaxSize()) {
-        drawSky()
-        drawSun()
-        drawClouds(cloudShift.value)
-        drawMountains()
-        drawLake(shimmer.value)
-        drawPines()
+        drawReferenceSky()
+        drawReferenceSun()
+        drawAtmosphericClouds(cloudShift.value)
+        drawMountainWorld()
+        drawReferenceLake(shimmer.value)
+        drawShoreForest()
+        drawForegroundPines()
     }
 }
 
-private fun DrawScope.drawSky() {
+private fun DrawScope.drawReferenceSky() {
     drawRect(
         brush = Brush.verticalGradient(
-            0f to Color(0xFF168FE2),
-            0.42f to Color(0xFF72C8F5),
-            0.72f to Color(0xFFC7EAF8),
-            1f to Color(0xFF4D91B9)
+            0f to Color(0xFF0D80D3),
+            0.27f to Color(0xFF45AEEB),
+            0.52f to Color(0xFF8FD2F1),
+            0.69f to Color(0xFFD5ECF3),
+            1f to Color(0xFF4D8DA7)
+        )
+    )
+
+    drawRect(
+        brush = Brush.verticalGradient(
+            colors = listOf(Color.Transparent, Color(0x44FFF1CD), Color.Transparent),
+            startY = size.height * 0.28f,
+            endY = size.height * 0.62f
         )
     )
 }
 
-private fun DrawScope.drawSun() {
-    val center = Offset(size.width * 0.20f, size.height * 0.18f)
+private fun DrawScope.drawReferenceSun() {
+    val center = Offset(size.width * 0.18f, size.height * 0.19f)
+    val glowRadius = size.width * 0.34f
+
     drawCircle(
         brush = Brush.radialGradient(
             colors = listOf(
-                Color(0xFFFFFBE8),
-                Color(0xFFFFF2A5).copy(alpha = 0.86f),
+                Color.White.copy(alpha = 0.86f),
+                Color(0xFFFFF4A8).copy(alpha = 0.52f),
+                Color(0xFFFFDD72).copy(alpha = 0.15f),
                 Color.Transparent
             ),
             center = center,
-            radius = size.width * 0.28f
+            radius = glowRadius
         ),
-        radius = size.width * 0.28f,
+        radius = glowRadius,
         center = center
     )
-    drawCircle(Color(0xFFFFF8D3), radius = size.width * 0.042f, center = center)
-    repeat(12) { index ->
-        rotate(index * 30f, pivot = center) {
+
+    repeat(18) { index ->
+        rotate(index * 20f, pivot = center) {
             drawRoundRect(
-                color = Color.White.copy(alpha = 0.42f),
-                topLeft = Offset(center.x - 1.5f, center.y - size.width * 0.11f),
-                size = Size(3f, size.width * 0.055f),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f)
+                color = Color.White.copy(alpha = if (index % 2 == 0) 0.48f else 0.24f),
+                topLeft = Offset(center.x - 1.1f, center.y - size.width * 0.17f),
+                size = Size(2.2f, size.width * if (index % 2 == 0) 0.10f else 0.065f),
+                cornerRadius = CornerRadius(3f, 3f)
             )
         }
     }
+
+    drawCircle(Color(0xFFFFF7CF), radius = size.width * 0.038f, center = center)
+    drawCircle(Color.White.copy(alpha = 0.75f), radius = size.width * 0.018f, center = center)
 }
 
-private fun DrawScope.drawClouds(progress: Float) {
-    val x = (progress * size.width) - size.width * 0.16f
-    val y = size.height * 0.15f
-    val cloud = Color.White.copy(alpha = 0.34f)
-    drawOval(cloud, topLeft = Offset(x, y), size = Size(size.width * 0.23f, size.height * 0.035f))
-    drawCircle(cloud, radius = size.width * 0.045f, center = Offset(x + size.width * 0.07f, y))
-    drawCircle(cloud, radius = size.width * 0.055f, center = Offset(x + size.width * 0.13f, y - size.height * 0.006f))
+private fun DrawScope.drawAtmosphericClouds(progress: Float) {
+    fun cloud(x: Float, y: Float, scale: Float, alpha: Float) {
+        val c = Color.White.copy(alpha = alpha)
+        drawOval(c, Offset(x, y), Size(size.width * 0.24f * scale, size.height * 0.028f * scale))
+        drawCircle(c, size.width * 0.035f * scale, Offset(x + size.width * 0.055f * scale, y))
+        drawCircle(c, size.width * 0.046f * scale, Offset(x + size.width * 0.115f * scale, y - size.height * 0.007f * scale))
+        drawCircle(c, size.width * 0.032f * scale, Offset(x + size.width * 0.17f * scale, y))
+    }
+
+    val driftA = (progress * size.width * 0.34f) - size.width * 0.13f
+    val driftB = (progress * size.width * 0.22f) - size.width * 0.08f
+    cloud(size.width * 0.56f + driftA, size.height * 0.17f, 0.75f, 0.35f)
+    cloud(size.width * 0.18f + driftB, size.height * 0.30f, 0.55f, 0.22f)
+    cloud(size.width * 0.72f - driftB, size.height * 0.29f, 0.46f, 0.18f)
 }
 
-private fun DrawScope.drawMountains() {
-    val horizon = size.height * 0.48f
+private fun DrawScope.drawMountainWorld() {
+    val horizon = size.height * 0.50f
 
-    val far = Path().apply {
-        moveTo(0f, horizon + size.height * 0.05f)
-        lineTo(size.width * 0.16f, horizon - size.height * 0.055f)
-        lineTo(size.width * 0.29f, horizon + size.height * 0.01f)
-        lineTo(size.width * 0.46f, horizon - size.height * 0.13f)
-        lineTo(size.width * 0.61f, horizon + size.height * 0.015f)
-        lineTo(size.width * 0.78f, horizon - size.height * 0.095f)
-        lineTo(size.width, horizon + size.height * 0.03f)
+    val distant = Path().apply {
+        moveTo(0f, horizon + size.height * 0.045f)
+        lineTo(size.width * 0.12f, horizon - size.height * 0.035f)
+        lineTo(size.width * 0.24f, horizon + size.height * 0.012f)
+        lineTo(size.width * 0.37f, horizon - size.height * 0.105f)
+        lineTo(size.width * 0.48f, horizon - size.height * 0.018f)
+        lineTo(size.width * 0.61f, horizon - size.height * 0.155f)
+        lineTo(size.width * 0.73f, horizon - size.height * 0.035f)
+        lineTo(size.width * 0.86f, horizon - size.height * 0.11f)
+        lineTo(size.width, horizon + size.height * 0.018f)
         lineTo(size.width, horizon + size.height * 0.14f)
         lineTo(0f, horizon + size.height * 0.14f)
         close()
     }
     drawPath(
-        far,
+        distant,
         brush = Brush.verticalGradient(
-            listOf(Color(0xFFDDE8EC), Color(0xFF6F8C97)),
-            startY = horizon - size.height * 0.15f,
+            listOf(Color(0xFFEAF2F4), Color(0xFF7897A3), Color(0xFF476973)),
+            startY = horizon - size.height * 0.17f,
             endY = horizon + size.height * 0.14f
         )
     )
 
-    val snow = Path().apply {
-        moveTo(size.width * 0.37f, horizon - size.height * 0.06f)
-        lineTo(size.width * 0.46f, horizon - size.height * 0.13f)
-        lineTo(size.width * 0.54f, horizon - size.height * 0.055f)
-        lineTo(size.width * 0.49f, horizon - size.height * 0.075f)
-        lineTo(size.width * 0.46f, horizon - size.height * 0.045f)
-        lineTo(size.width * 0.42f, horizon - size.height * 0.078f)
+    val snowPeakLeft = Path().apply {
+        moveTo(size.width * 0.30f, horizon - size.height * 0.04f)
+        lineTo(size.width * 0.37f, horizon - size.height * 0.105f)
+        lineTo(size.width * 0.44f, horizon - size.height * 0.035f)
+        lineTo(size.width * 0.40f, horizon - size.height * 0.056f)
+        lineTo(size.width * 0.37f, horizon - size.height * 0.037f)
+        lineTo(size.width * 0.34f, horizon - size.height * 0.061f)
         close()
     }
-    drawPath(snow, Color.White.copy(alpha = 0.92f))
+    drawPath(snowPeakLeft, Color.White.copy(alpha = 0.88f))
+
+    val snowPeakCenter = Path().apply {
+        moveTo(size.width * 0.51f, horizon - size.height * 0.055f)
+        lineTo(size.width * 0.61f, horizon - size.height * 0.155f)
+        lineTo(size.width * 0.70f, horizon - size.height * 0.052f)
+        lineTo(size.width * 0.65f, horizon - size.height * 0.082f)
+        lineTo(size.width * 0.61f, horizon - size.height * 0.058f)
+        lineTo(size.width * 0.57f, horizon - size.height * 0.086f)
+        close()
+    }
+    drawPath(snowPeakCenter, Color.White.copy(alpha = 0.94f))
+
+    val middle = Path().apply {
+        moveTo(0f, horizon + size.height * 0.08f)
+        lineTo(size.width * 0.15f, horizon + size.height * 0.015f)
+        lineTo(size.width * 0.30f, horizon + size.height * 0.072f)
+        lineTo(size.width * 0.47f, horizon + size.height * 0.008f)
+        lineTo(size.width * 0.63f, horizon + size.height * 0.075f)
+        lineTo(size.width * 0.80f, horizon + size.height * 0.012f)
+        lineTo(size.width, horizon + size.height * 0.075f)
+        lineTo(size.width, horizon + size.height * 0.17f)
+        lineTo(0f, horizon + size.height * 0.17f)
+        close()
+    }
+    drawPath(
+        middle,
+        brush = Brush.verticalGradient(
+            listOf(Color(0xFF315B54), Color(0xFF143D35)),
+            startY = horizon,
+            endY = horizon + size.height * 0.18f
+        )
+    )
 
     val near = Path().apply {
-        moveTo(0f, horizon + size.height * 0.07f)
-        lineTo(size.width * 0.18f, horizon + size.height * 0.01f)
-        lineTo(size.width * 0.35f, horizon + size.height * 0.07f)
-        lineTo(size.width * 0.58f, horizon + size.height * 0.025f)
-        lineTo(size.width * 0.76f, horizon + size.height * 0.075f)
-        lineTo(size.width, horizon + size.height * 0.01f)
-        lineTo(size.width, horizon + size.height * 0.18f)
-        lineTo(0f, horizon + size.height * 0.18f)
+        moveTo(0f, horizon + size.height * 0.105f)
+        lineTo(size.width * 0.17f, horizon + size.height * 0.06f)
+        lineTo(size.width * 0.34f, horizon + size.height * 0.10f)
+        lineTo(size.width * 0.52f, horizon + size.height * 0.055f)
+        lineTo(size.width * 0.72f, horizon + size.height * 0.11f)
+        lineTo(size.width, horizon + size.height * 0.055f)
+        lineTo(size.width, horizon + size.height * 0.19f)
+        lineTo(0f, horizon + size.height * 0.19f)
         close()
     }
-    drawPath(near, Color(0xFF214F45))
+    drawPath(near, Color(0xFF0E332A))
 }
 
-private fun DrawScope.drawLake(shimmer: Float) {
-    val lakeTop = size.height * 0.57f
+private fun DrawScope.drawReferenceLake(shimmer: Float) {
+    val lakeTop = size.height * 0.585f
     drawRect(
         brush = Brush.verticalGradient(
-            listOf(Color(0xFF2C83A8), Color(0xFF0C587B), Color(0xFF073B56)),
+            listOf(
+                Color(0xFF4B9DB6),
+                Color(0xFF167595),
+                Color(0xFF0A506F),
+                Color(0xFF063548)
+            ),
             startY = lakeTop,
             endY = size.height
         ),
@@ -160,44 +223,84 @@ private fun DrawScope.drawLake(shimmer: Float) {
         size = Size(size.width, size.height - lakeTop)
     )
 
-    val baseY = lakeTop + size.height * 0.05f
-    repeat(18) { index ->
-        val phase = shimmer * 6.28318f + index * 0.72f
-        val y = baseY + index * size.height * 0.019f
-        val centerX = size.width * (0.48f + sin(phase) * 0.07f)
-        val lineWidth = size.width * (0.06f + (index % 5) * 0.025f)
+    drawRect(
+        brush = Brush.horizontalGradient(
+            listOf(Color.Transparent, Color.White.copy(alpha = 0.10f), Color.Transparent)
+        ),
+        topLeft = Offset(0f, lakeTop),
+        size = Size(size.width, size.height * 0.18f)
+    )
+
+    repeat(25) { index ->
+        val phase = shimmer * 6.28318f + index * 0.63f
+        val y = lakeTop + size.height * 0.018f + index * size.height * 0.0125f
+        val centerX = size.width * (0.49f + sin(phase) * 0.11f)
+        val lineWidth = size.width * (0.045f + (index % 6) * 0.022f)
         drawLine(
-            color = Color(0xFFBDE9F5).copy(alpha = 0.08f + (index % 3) * 0.035f),
+            color = Color(0xFFE0F7FB).copy(alpha = 0.055f + (index % 4) * 0.027f),
             start = Offset(centerX - lineWidth, y),
             end = Offset(centerX + lineWidth, y),
-            strokeWidth = 1.5f + (index % 2)
+            strokeWidth = 1.1f + (index % 3) * 0.45f
+        )
+    }
+
+    repeat(8) { index ->
+        val x = size.width * (0.11f + index * 0.11f)
+        val reflectionHeight = size.height * (0.045f + (index % 3) * 0.018f)
+        drawLine(
+            color = Color(0xFF0B463D).copy(alpha = 0.30f),
+            start = Offset(x, lakeTop + size.height * 0.006f),
+            end = Offset(x + size.width * 0.012f, lakeTop + reflectionHeight),
+            strokeWidth = size.width * 0.012f
         )
     }
 }
 
-private fun DrawScope.drawPines() {
+private fun DrawScope.drawShoreForest() {
+    val baseY = size.height * 0.605f
+
+    fun tinyPine(x: Float, height: Float, color: Color) {
+        val path = Path().apply {
+            moveTo(x, baseY - height)
+            lineTo(x - height * 0.18f, baseY)
+            lineTo(x + height * 0.18f, baseY)
+            close()
+        }
+        drawPath(path, color)
+    }
+
+    repeat(24) { index ->
+        val x = size.width * (index / 23f)
+        val height = size.height * (0.026f + (index % 5) * 0.006f)
+        tinyPine(x, height, if (index % 2 == 0) Color(0xFF174A38) else Color(0xFF103C30))
+    }
+}
+
+private fun DrawScope.drawForegroundPines() {
     fun pine(x: Float, baseY: Float, height: Float, color: Color) {
         drawRect(
-            color = Color(0xFF173226),
-            topLeft = Offset(x - height * 0.018f, baseY - height * 0.18f),
-            size = Size(height * 0.036f, height * 0.18f)
+            color = Color(0xFF122B22),
+            topLeft = Offset(x - height * 0.012f, baseY - height * 0.18f),
+            size = Size(height * 0.024f, height * 0.18f)
         )
-        repeat(4) { layer ->
-            val top = baseY - height + layer * height * 0.18f
-            val half = height * (0.12f + layer * 0.035f)
+        repeat(6) { layer ->
+            val top = baseY - height + layer * height * 0.13f
+            val half = height * (0.075f + layer * 0.020f)
             val path = Path().apply {
                 moveTo(x, top)
-                lineTo(x - half, top + height * 0.34f)
-                lineTo(x + half, top + height * 0.34f)
+                lineTo(x - half, top + height * 0.28f)
+                lineTo(x + half, top + height * 0.28f)
                 close()
             }
             drawPath(path, color)
         }
     }
 
-    val base = size.height * 0.67f
-    pine(size.width * 0.06f, base, size.height * 0.18f, Color(0xFF133F31))
-    pine(size.width * 0.13f, base + size.height * 0.015f, size.height * 0.14f, Color(0xFF0F382B))
-    pine(size.width * 0.91f, base + size.height * 0.02f, size.height * 0.17f, Color(0xFF12372C))
-    pine(size.width * 0.82f, base + size.height * 0.025f, size.height * 0.13f, Color(0xFF173E32))
+    val base = size.height * 0.70f
+    pine(size.width * 0.035f, base, size.height * 0.21f, Color(0xFF0B392B))
+    pine(size.width * 0.105f, base + size.height * 0.012f, size.height * 0.155f, Color(0xFF104331))
+    pine(size.width * 0.165f, base + size.height * 0.018f, size.height * 0.12f, Color(0xFF0D382B))
+    pine(size.width * 0.965f, base + size.height * 0.008f, size.height * 0.22f, Color(0xFF0A3328))
+    pine(size.width * 0.89f, base + size.height * 0.020f, size.height * 0.16f, Color(0xFF10402F))
+    pine(size.width * 0.82f, base + size.height * 0.024f, size.height * 0.12f, Color(0xFF133D31))
 }
