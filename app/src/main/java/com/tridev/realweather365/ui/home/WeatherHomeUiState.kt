@@ -2,7 +2,8 @@ package com.tridev.realweather365.ui.home
 
 enum class WeatherScene {
     SUNNY,
-    SUNRISE
+    SUNRISE,
+    RAIN
 }
 
 data class HourForecast(
@@ -18,26 +19,26 @@ data class WeatherMetric(
 )
 
 data class WeatherHomeUiState(
-    val scene: WeatherScene = WeatherScene.SUNRISE,
+    val scene: WeatherScene = WeatherScene.RAIN,
     val location: String = "Chandauli",
-    val updatedAt: String = "Live • 6:12 AM",
-    val temperature: Int = 20,
-    val condition: String = "Sunrise",
-    val feelsLike: Int = 21,
-    val high: Int = 27,
-    val low: Int = 15,
+    val updatedAt: String = "Live • 4:36 PM",
+    val temperature: Int = 27,
+    val condition: String = "Rain",
+    val feelsLike: Int = 30,
+    val high: Int = 29,
+    val low: Int = 24,
     val hourly: List<HourForecast> = listOf(
-        HourForecast("Now", 20, "Sunrise"),
-        HourForecast("7 AM", 21, "Sunny"),
-        HourForecast("9 AM", 22, "Sunny"),
-        HourForecast("11 AM", 25, "Sunny"),
-        HourForecast("1 PM", 27, "Sunny"),
-        HourForecast("3 PM", 26, "Sunny")
+        HourForecast("Now", 27, "Rain"),
+        HourForecast("5 PM", 27, "Rain"),
+        HourForecast("7 PM", 26, "Rain"),
+        HourForecast("9 PM", 26, "Rain"),
+        HourForecast("11 PM", 25, "Cloudy"),
+        HourForecast("1 AM", 24, "Cloudy")
     ),
     val metrics: List<WeatherMetric> = listOf(
-        WeatherMetric("AQI", "58", "Moderate"),
-        WeatherMetric("Wind", "8 km/h", "E"),
-        WeatherMetric("Humidity", "72%", "Humid"),
-        WeatherMetric("Pressure", "1009", "hPa")
+        WeatherMetric("AQI", "68", "Moderate"),
+        WeatherMetric("Wind", "18 km/h", "SE"),
+        WeatherMetric("Humidity", "94%", "Very humid"),
+        WeatherMetric("Pressure", "1007", "hPa")
     )
 )
